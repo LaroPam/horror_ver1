@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:glowstone"
+    },
+    "title": {
+      "translate": "advancements.cornerofeye.banished.title"
+    },
+    "description": {
+      "translate": "advancements.cornerofeye.banished.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "code": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "cornerofeye:caught"
+}

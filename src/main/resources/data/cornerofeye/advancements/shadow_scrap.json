@@ -1,0 +1,32 @@
+{
+  "display": {
+    "icon": {
+      "item": "cornerofeye:shadow_scrap"
+    },
+    "title": {
+      "translate": "advancements.cornerofeye.shadow_scrap.title"
+    },
+    "description": {
+      "translate": "advancements.cornerofeye.shadow_scrap.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "scrap": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "cornerofeye:shadow_scrap"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "parent": "cornerofeye:root"
+}
