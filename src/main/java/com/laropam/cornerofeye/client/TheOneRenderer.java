@@ -27,6 +27,9 @@ public class TheOneRenderer extends MobRenderer<TheOneEntity, TheOneModel> {
         if (visibility < 0.01F) {
             return;
         }
+        if (visibility > 0.5F) {
+            ClientHorror.onGlimpse(entity);
+        }
         this.getModel().setAlpha(visibility);
         super.render(entity, yaw, partialTick, poseStack, buffers, packedLight);
     }

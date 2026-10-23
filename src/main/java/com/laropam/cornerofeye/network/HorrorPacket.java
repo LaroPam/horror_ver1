@@ -23,7 +23,9 @@ public record HorrorPacket(Type type, BlockPos pos, int data) {
         /** data = duration in ticks. */
         JUMPSCARE,
         /** data = brightness, 0-100. */
-        FLASH
+        FLASH,
+        /** A sudden jolt of fear, e.g. a light going out right next to you. data = 0-100. */
+        DREAD
     }
 
     public static final int DEFEATED = 99;

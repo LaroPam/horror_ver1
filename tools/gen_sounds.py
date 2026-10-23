@@ -232,6 +232,67 @@ def lantern_flash():
     return np.tanh(1.5 * (burst + thump + chord))
 
 
+def glimpse():
+    """The sting when it shows up at the edge of your screen: a stab of clashing strings."""
+    length = 1.6
+    n = int(SR * length)
+    tt = t(length)
+    vibrato = 1 + 0.006 * np.sin(2 * np.pi * 6.0 * tt)
+    strings = sum(osc_saw(np.full(n, f) * vibrato * (1 + 0.002 * i)) * a
+                  for i, (f, a) in enumerate([(740, 1.0), (784, 0.9), (831, 0.8), (1480, 0.35), (1568, 0.3)]))
+    strings = bandpass(strings, 500, 6000)
+    bow = bandpass(noise(length), 2000, 7000) * 0.3
+    sting = (strings + bow) * np.exp(-tt * 2.6) * env(n, 0.012, 0.3)
+    thud = lowpass(noise(length), 120) * np.exp(-tt * 14) * 2.0
+    return np.tanh(1.8 * (sting + thud))
+
+
+def player_breath():
+    """Your own breathing: fast, shallow, shaking."""
+    parts = []
+    for i in range(3):
+        inhale_len = 0.32 + rng.random() * 0.08
+        exhale_len = 0.42 + rng.random() * 0.1
+        shake = 1 + 0.35 * np.sin(2 * np.pi * 11 * t(inhale_len))
+        inhale = bandpass(noise(inhale_len), 900, 4200) * np.hanning(int(SR * inhale_len)) * shake
+        exhale = bandpass(noise(exhale_len), 400, 2400) * np.hanning(int(SR * exhale_len)) * 0.8
+        parts += [inhale, np.zeros(int(SR * 0.05)), exhale, np.zeros(int(SR * (0.08 + rng.random() * 0.1)))]
+    return np.concatenate(parts)
+
+
+def tinnitus():
+    """The ringing in your ears when it is far too close."""
+    length = 4.5
+    tt = t(length)
+    tone = np.sin(2 * np.pi * 6200 * tt) + 0.6 * np.sin(2 * np.pi * 6310 * tt) + 0.25 * np.sin(2 * np.pi * 3100 * tt)
+    return tone * env(len(tt), 0.4, 3.2, 1.6)
+
+
+def dread_loop():
+    """A seamless 8 second hum that sits under everything while it is near.
+
+    Every tone completes a whole number of cycles and the noise is built in the frequency domain,
+    so the end runs straight into the start with no click.
+    """
+    length = 8.0
+    n = int(SR * length)
+    tt = t(length)
+
+    def looping_noise(low, high):
+        freqs = np.fft.rfftfreq(n, 1 / SR)
+        spectrum = np.zeros(len(freqs), dtype=complex)
+        band = (freqs >= low) & (freqs <= high)
+        spectrum[band] = np.exp(1j * rng.uniform(0, 2 * np.pi, band.sum()))
+        x = np.fft.irfft(spectrum, n)
+        return x / np.max(np.abs(x))
+
+    low = np.sin(2 * np.pi * 55.0 * tt) + np.sin(2 * np.pi * 55.25 * tt) + 0.4 * np.sin(2 * np.pi * 82.5 * tt)
+    throb = 0.75 + 0.25 * np.sin(2 * np.pi * 0.5 * tt)
+    air = looping_noise(120, 700) * 0.35
+    whine = (np.sin(2 * np.pi * 1320.0 * tt) + np.sin(2 * np.pi * 1398.125 * tt)) * 0.04 * (0.5 + 0.5 * np.sin(2 * np.pi * 0.25 * tt))
+    return (low * 0.45 * throb + air + whine)
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     write("the_one_breath1", breath(0), -3)
@@ -248,4 +309,8 @@ if __name__ == "__main__":
     write("drone", drone(), -2)
     write("lantern_charge", lantern_charge(), -4)
     write("lantern_flash", lantern_flash(), -1)
+    write("glimpse", glimpse(), -1)
+    write("player_breath", player_breath(), -2)
+    write("tinnitus", tinnitus(), -8)
+    write("dread_loop", dread_loop(), -3)
     print("sounds written to", os.path.normpath(OUT))

@@ -13,6 +13,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.resources.sounds.TickableSoundInstance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -28,6 +30,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.ViewportEvent;
+import net.minecraftforge.client.event.sound.PlaySoundEvent;
 import net.minecraftforge.client.gui.overlay.ForgeGui;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -65,9 +68,17 @@ public final class ClientHorror {
 
     private static float dread;
     private static float dreadO;
+    private static float dreadSpike;
+    private static float beat;
+    private static float beatO;
     private static float fog;
     private static float fogO;
     private static int heartbeatTimer;
+    private static int breathTimer;
+    private static int tinnitusCooldown;
+    private static int lastGlimpsedId = -1;
+    private static long lastGlimpseTime;
+    private static DreadLoopSound dreadLoop;
 
     // ------------------------------------------------------------- packets
 
@@ -97,8 +108,10 @@ public final class ClientHorror {
                 jumpscareLength = Math.max(1, msg.data());
                 jumpscareTicks = ClientConfig.JUMPSCARES.get() ? jumpscareLength : 0;
                 minecraft.getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.SCREAM.get(), 1.0F, 1.0F));
+                dreadSpike = 1.0F;
             }
             case FLASH -> flash = Math.max(flash, msg.data() / 100.0F);
+            case DREAD -> dreadSpike = Math.min(1.0F, dreadSpike + msg.data() / 100.0F);
         }
     }
 
@@ -196,36 +209,105 @@ public final class ClientHorror {
         }
     }
 
-    /** How close it is decides the heartbeat, the dark at the edges and the fog. */
+    /**
+     * Fear, shown only through the senses: no meter on screen. How close it is, how dark it is around you,
+     * and sudden shocks (a light dying next to you, a glimpse of it) decide the heartbeat, your own breathing,
+     * the hum under everything, how muffled the world sounds, how narrow and dark your vision gets, and the fog.
+     */
     private static void tickDread(Minecraft minecraft, ClientLevel level, LocalPlayer player) {
-        float target = 0.0F;
+        float proximity = 0.0F;
         for (TheOneEntity one : level.getEntitiesOfClass(TheOneEntity.class, player.getBoundingBox().inflate(32.0D))) {
             Phase phase = one.getPhase();
             float range = phase == Phase.WATCH ? 20.0F : 32.0F;
             float closeness = 1.0F - Mth.clamp(one.distanceTo(player) / range, 0.0F, 1.0F);
-            target = Math.max(target, phase == Phase.WATCH ? closeness * 0.5F : closeness);
-        }
-        dreadO = dread;
-        dread += (target - dread) * 0.05F;
-
-        if (dread > 0.08F && --heartbeatTimer <= 0) {
-            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.HEARTBEAT.get(), 1.0F, 0.25F + dread * 0.75F));
-            heartbeatTimer = (int) Mth.lerp(dread, 32.0F, 11.0F);
+            proximity = Math.max(proximity, phase == Phase.WATCH ? closeness * 0.5F : closeness);
         }
 
         long time = level.getDayTime() % 24000L;
         boolean night = time > 13000L && time < 23000L;
+        boolean haunted = stage != HorrorPacket.DEFEATED && level.dimension() == Level.OVERWORLD;
+        // Once it has started coming closer, just standing in the dark is enough to make your heart race.
+        float darkness = 0.0F;
+        if (haunted && stage >= HauntData.APPROACHING && level.getMaxLocalRawBrightness(player.blockPosition()) < 7) {
+            darkness = stage >= HauntData.HUNTING ? 0.22F : 0.12F;
+        }
+
+        dreadSpike = Math.max(0.0F, dreadSpike - 0.012F);
+        float target = haunted || proximity > 0.0F ? Mth.clamp(Math.max(proximity, darkness) + dreadSpike, 0.0F, 1.0F) : 0.0F;
+        dreadO = dread;
+        // Fear comes fast and leaves slowly.
+        dread += (target - dread) * (target > dread ? 0.12F : 0.03F);
+
+        beatO = beat;
+        beat = Math.max(0.0F, beat - 0.12F);
+        if (dread > 0.08F && --heartbeatTimer <= 0) {
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.HEARTBEAT.get(), 1.0F, 0.25F + dread * 0.75F));
+            heartbeatTimer = (int) Mth.lerp(dread, 32.0F, 10.0F);
+            beat = 1.0F;
+        }
+        if (dread > 0.5F && --breathTimer <= 0) {
+            // You can hear yourself breathing.
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.PLAYER_BREATH.get(), 0.95F + RANDOM.nextFloat() * 0.1F,
+                    (dread - 0.4F) * 0.8F));
+            breathTimer = (int) Mth.lerp(dread, 90.0F, 50.0F) + RANDOM.nextInt(20);
+        }
+        if (tinnitusCooldown > 0) {
+            tinnitusCooldown--;
+        } else if (dread > 0.85F) {
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.TINNITUS.get(), 1.0F, 0.35F));
+            tinnitusCooldown = 400;
+        }
+        if (dread > 0.05F && (dreadLoop == null || !minecraft.getSoundManager().isActive(dreadLoop))) {
+            dreadLoop = new DreadLoopSound();
+            minecraft.getSoundManager().play(dreadLoop);
+        }
+
         float fogTarget = 0.0F;
-        if (stage != HorrorPacket.DEFEATED && level.dimension() == Level.OVERWORLD) {
+        if (haunted) {
             if (night && stage >= HauntData.HUNTING) {
                 fogTarget = 0.85F;
             } else if (night && stage >= HauntData.APPROACHING) {
                 fogTarget = 0.6F;
             }
-            fogTarget = Math.max(fogTarget, dread);
+            fogTarget = Math.max(fogTarget, proximity);
         }
         fogO = fog;
         fog += (fogTarget - fog) * 0.02F;
+    }
+
+    /** Current fear, 0-1. */
+    static float dreadLevel() {
+        return dread;
+    }
+
+    /** It just showed up at the edge of your screen. You might not have noticed. Your ears did. */
+    static void onGlimpse(TheOneEntity entity) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null) {
+            return;
+        }
+        long now = minecraft.level.getGameTime();
+        if (entity.getId() != lastGlimpsedId || now - lastGlimpseTime > 300L) {
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.GLIMPSE.get(), 0.9F + RANDOM.nextFloat() * 0.2F, 0.6F));
+            dreadSpike = Math.min(1.0F, dreadSpike + 0.35F);
+        }
+        lastGlimpsedId = entity.getId();
+        lastGlimpseTime = now;
+    }
+
+    /** The world goes quiet and slow when it is near: everything except it, and your heart. */
+    @SubscribeEvent
+    public static void onPlaySound(PlaySoundEvent event) {
+        SoundInstance sound = event.getSound();
+        if (sound == null || dread < 0.1F || !ClientConfig.MUFFLE_WORLD.get() || sound instanceof TickableSoundInstance
+                || CornerOfTheEye.MODID.equals(sound.getLocation().getNamespace())) {
+            return;
+        }
+        SoundSource source = sound.getSource();
+        if (source == SoundSource.AMBIENT || source == SoundSource.BLOCKS || source == SoundSource.NEUTRAL
+                || source == SoundSource.PLAYERS || source == SoundSource.WEATHER) {
+            event.setSound(new MuffledSound(sound, 1.0F - 0.75F * dread, 1.0F - 0.15F * dread));
+        }
     }
 
     @SubscribeEvent
@@ -236,11 +318,23 @@ public final class ClientHorror {
         knockTicks = -1;
         jumpscareTicks = 0;
         flash = flashO = 0.0F;
-        dread = dreadO = 0.0F;
+        dread = dreadO = dreadSpike = 0.0F;
+        beat = beatO = 0.0F;
         fog = fogO = 0.0F;
+        lastGlimpsedId = -1;
+        dreadLoop = null;
     }
 
     // ---------------------------------------------------------- viewport
+
+    /** Fear narrows your vision, which leaves less room at the edges to catch it in. */
+    @SubscribeEvent
+    public static void onNarrowFov(ViewportEvent.ComputeFov event) {
+        float amount = Mth.lerp((float) event.getPartialTick(), dreadO, dread);
+        if (event.usedConfiguredFov() && amount > 0.01F && ClientConfig.SCREEN_EFFECTS.get()) {
+            event.setFOV(event.getFOV() * (1.0D - 0.08D * amount));
+        }
+    }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onComputeFov(ViewportEvent.ComputeFov event) {
@@ -274,7 +368,18 @@ public final class ClientHorror {
 
     @SubscribeEvent
     public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
-        if (jumpscareTicks <= 0 || !ClientConfig.SCREEN_EFFECTS.get()) {
+        if (!ClientConfig.SCREEN_EFFECTS.get()) {
+            return;
+        }
+        float partial = (float) event.getPartialTick();
+        float amount = Mth.lerp(partial, dreadO, dread);
+        if (amount > 0.6F && Minecraft.getInstance().level != null) {
+            // Hands shaking: a slight unsteady roll that grows with fear.
+            float t = Minecraft.getInstance().level.getGameTime() + partial;
+            float tremble = (amount - 0.6F) * 2.5F;
+            event.setRoll(event.getRoll() + (Mth.sin(t * 0.9F) + Mth.sin(t * 2.3F) * 0.5F) * tremble);
+        }
+        if (jumpscareTicks <= 0) {
             return;
         }
         float shake = 4.0F * jumpscareTicks / jumpscareLength;
@@ -290,8 +395,8 @@ public final class ClientHorror {
         if (amount < 0.02F || !ClientConfig.SCREEN_EFFECTS.get()) {
             return;
         }
-        // A slow pulse in time with nothing in particular.
-        float pulse = 0.85F + 0.15F * Mth.sin((Minecraft.getInstance().level.getGameTime() + partialTick) * 0.25F);
+        // The dark at the edges throbs with every heartbeat.
+        float pulse = 0.8F + 0.35F * Mth.lerp(partialTick, beatO, beat);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         graphics.setColor(1.0F, 1.0F, 1.0F, Mth.clamp(amount * 1.1F * pulse, 0.0F, 0.95F));

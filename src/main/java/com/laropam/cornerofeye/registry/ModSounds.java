@@ -22,6 +22,10 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> DISTANT = register("distant");
     public static final RegistryObject<SoundEvent> LANTERN_CHARGE = register("lantern_charge");
     public static final RegistryObject<SoundEvent> LANTERN_FLASH = register("lantern_flash");
+    public static final RegistryObject<SoundEvent> GLIMPSE = register("glimpse");
+    public static final RegistryObject<SoundEvent> PLAYER_BREATH = register("player_breath");
+    public static final RegistryObject<SoundEvent> TINNITUS = register("tinnitus");
+    public static final RegistryObject<SoundEvent> DREAD_LOOP = register("dread_loop");
 
     private static RegistryObject<SoundEvent> register(String name) {
         return SOUNDS.register(name, () -> SoundEvent.createVariableRangeEvent(CornerOfTheEye.id(name)));

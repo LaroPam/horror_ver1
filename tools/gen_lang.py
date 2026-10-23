@@ -103,6 +103,9 @@ TEXT = {
         "subtitles.cornerofeye.distant": "Distant noise",
         "subtitles.cornerofeye.lantern_charge": "Lantern hums",
         "subtitles.cornerofeye.lantern_flash": "Lantern flashes",
+        "subtitles.cornerofeye.glimpse": "Something at the edge of sight",
+        "subtitles.cornerofeye.player_breath": "You breathe faster",
+        "subtitles.cornerofeye.tinnitus": "Ringing in your ears",
 
         "cornerofeye.stage.0": "Silence",
         "cornerofeye.stage.1": "Watching",
@@ -161,6 +164,9 @@ TEXT = {
         "subtitles.cornerofeye.distant": "Далёкий звук",
         "subtitles.cornerofeye.lantern_charge": "Фонарь гудит",
         "subtitles.cornerofeye.lantern_flash": "Вспышка фонаря",
+        "subtitles.cornerofeye.glimpse": "Что-то на краю зрения",
+        "subtitles.cornerofeye.player_breath": "Ты дышишь чаще",
+        "subtitles.cornerofeye.tinnitus": "Звон в ушах",
 
         "cornerofeye.stage.0": "Тишина",
         "cornerofeye.stage.1": "Наблюдение",

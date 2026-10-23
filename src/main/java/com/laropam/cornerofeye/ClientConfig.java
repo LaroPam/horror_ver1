@@ -13,8 +13,11 @@ public final class ClientConfig {
             .comment("Thick fog at night in later stages and while it is close.")
             .define("fog", true);
     public static final ForgeConfigSpec.BooleanValue SCREEN_EFFECTS = BUILDER
-            .comment("Darkening screen edges, camera shake and the lantern flash.")
+            .comment("Darkening screen edges, narrowing vision, camera shake and the lantern flash.")
             .define("screenEffects", true);
+    public static final ForgeConfigSpec.BooleanValue MUFFLE_WORLD = BUILDER
+            .comment("When it is close, the rest of the world goes quiet and slow, so you hear your heart and it.")
+            .define("muffleWorld", true);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 

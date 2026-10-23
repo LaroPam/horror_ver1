@@ -1,8 +1,11 @@
 package com.laropam.cornerofeye.haunt;
 
+import com.laropam.cornerofeye.network.HorrorNetwork;
+import com.laropam.cornerofeye.network.HorrorPacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
@@ -11,6 +14,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CarvedPumpkinBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -58,6 +62,13 @@ public final class Lights {
         }
         level.playSound(null, pos, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 0.35F, 1.7F + level.random.nextFloat() * 0.3F);
         level.sendParticles(ParticleTypes.SMOKE, pos.getX() + 0.5D, pos.getY() + 0.6D, pos.getZ() + 0.5D, 8, 0.08D, 0.12D, 0.08D, 0.01D);
+        // A light going out next to you makes your heart jump.
+        for (ServerPlayer player : level.players()) {
+            double dist = Math.sqrt(player.distanceToSqr(Vec3.atCenterOf(pos)));
+            if (dist < 16.0D) {
+                HorrorNetwork.send(player, HorrorPacket.Type.DREAD, (int) (35 * (1.0D - dist / 16.0D)));
+            }
+        }
     }
 
     /** Puts out the nearest light nobody is watching. */
