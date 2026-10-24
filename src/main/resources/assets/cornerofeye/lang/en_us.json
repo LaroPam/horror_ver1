@@ -30,6 +30,8 @@
   "commands.cornerofeye.dream.failed": "No dream here: nightmares are off, or no room for a bed",
   "subtitles.cornerofeye.warding_bell": "A little bell rings",
   "subtitles.cornerofeye.claw_scrape": "Claws scrape inside the wall",
+  "subtitles.cornerofeye.claw_glass": "Claws scrape down the glass",
+  "subtitles.cornerofeye.glass_tap": "Something taps on the glass",
   "cornerofeye.message.doll_back": "The doll is back in your pocket.",
   "cornerofeye.message.doll_crumbled": "The old doll falls apart in your hands. It only wants one of you.",
   "cornerofeye.message.doll_burned": "Somewhere, a doll burned. It is quieter now.",

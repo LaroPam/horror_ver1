@@ -22,7 +22,9 @@ public enum Scene {
     /** Goes through a village in the dark while you aren't looking. Never seen. Then comes for you. */
     MASSACRE(2),
     /** Comes for you on all fours out of the dark, fast. */
-    CHASE(3);
+    CHASE(3),
+    /** Your room is lit, so it bends down to the window and looks in, palms on the glass. */
+    WINDOW(2);
 
     /** Stage at which the haunt starts using this moment on its own. */
     public final int minStage;

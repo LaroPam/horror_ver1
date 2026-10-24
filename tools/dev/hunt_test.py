@@ -6,7 +6,8 @@ The field spans x 460..510, z -100..-40, grass at y -62 (you stand on y -61). Pr
 seconds and records build/devshots/<name>.mp4. VIEW=front films the player from the front (F5 twice), to see
 what is happening right under or behind them. TURN="8:0:10;12:180:40" turns the player to yaw 0, pitch 10
 at 8 s and back at 12 s (to look away and back). AFTER="cmd;cmd" runs once the player is in place (to sit
-them in a boat, say).
+them in a boat, say). With the monster at "none", START="cmd;cmd" runs instead of summoning it (a moment, say:
+START="cornerofeye moment window Dev").
 """
 import os
 import sys
@@ -17,7 +18,7 @@ from devlib import key, rcon, record  # noqa: E402
 
 name = sys.argv[1]
 px, py, pz, yaw, pitch = (float(v) for v in sys.argv[2:7])
-mx, my, mz = (float(v) for v in sys.argv[7:10])
+mx, my, mz = sys.argv[7:10]
 seconds = int(sys.argv[10]) if len(sys.argv) > 10 else 30
 extra = sys.argv[11:]
 rcon(f"tp Dev {px} -40 {pz} 0 0")
@@ -39,7 +40,10 @@ if front:
     key("F5")
 proc = record(name, seconds)
 time.sleep(0.3)
-rcon(f'summon cornerofeye:the_one {mx} {my} {mz} {{Phase:"HUNT"}}')
+if mx == "none":
+    rcon(*[c for c in os.environ.get("START", "").split(";") if c])
+else:
+    rcon(f'summon cornerofeye:the_one {mx} {my} {mz} {{Phase:"HUNT"}}')
 turns = [tuple(float(v) for v in t.split(":")) for t in os.environ.get("TURN", "").split(";") if t]
 for i in range(seconds * 2 - 2):
     time.sleep(0.5)

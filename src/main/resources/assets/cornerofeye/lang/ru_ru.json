@@ -30,6 +30,8 @@
   "commands.cornerofeye.dream.failed": "Сон не получится: кошмары выключены или негде поставить кровать",
   "subtitles.cornerofeye.warding_bell": "Звенит колокольчик",
   "subtitles.cornerofeye.claw_scrape": "Когти скребут в стене",
+  "subtitles.cornerofeye.claw_glass": "Когти скребут по стеклу",
+  "subtitles.cornerofeye.glass_tap": "Кто-то стучит в стекло",
   "cornerofeye.message.doll_back": "Кукла снова у тебя в кармане.",
   "cornerofeye.message.doll_crumbled": "Старая кукла рассыпается в руках. Ей нужна только одна.",
   "cornerofeye.message.doll_burned": "Где-то сгорела кукла. Стало тише.",

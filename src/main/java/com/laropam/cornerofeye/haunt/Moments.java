@@ -12,6 +12,7 @@ import com.laropam.cornerofeye.entity.scene.DoorScene;
 import com.laropam.cornerofeye.entity.scene.LightsOutScene;
 import com.laropam.cornerofeye.entity.scene.PeekScene;
 import com.laropam.cornerofeye.entity.scene.StillScene;
+import com.laropam.cornerofeye.entity.scene.WindowScene;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -23,7 +24,10 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.block.AbstractGlassBlock;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.Vec3;
@@ -74,6 +78,7 @@ public final class Moments {
             case UNDERWATER -> underwater(level, victim, stage);
             case MASSACRE -> massacre(level, victim, stage, forced);
             case CHASE -> chase(level, victim, stage);
+            case WINDOW -> window(level, victim, stage);
             case NONE -> null;
         };
     }
@@ -306,6 +311,69 @@ public final class Moments {
             return null;
         }
         return TheOneEntity.spawnForScene(level, victim, spot, stage, Scene.CHASE, new ChaseScene(ChaseScene.defaultLength(stage)));
+    }
+
+    // ------------------------------------------------------------------- window
+
+    /**
+     * You are indoors and can see out of a window: it comes to the window, outside in the dark, with the bottom of
+     * the glass a block above the ground it stands on, so bending down puts its face right against it.
+     */
+    @Nullable
+    private static TheOneEntity window(ServerLevel level, ServerPlayer victim, int stage) {
+        if (level.canSeeSky(BlockPos.containing(victim.getEyePosition()))) {
+            return null;
+        }
+        int safe = HorrorConfig.SAFE_LIGHT_LEVEL.get();
+        List<BlockPos> windows = new ArrayList<>();
+        List<Vec3> spots = new ArrayList<>();
+        List<Direction> outs = new ArrayList<>();
+        BlockPos center = victim.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-10, -2, -10), center.offset(10, 3, 10))) {
+            BlockState state = level.getBlockState(pos);
+            boolean pane = state.getBlock() instanceof IronBarsBlock && !state.is(Blocks.IRON_BARS);
+            if (!pane && !(state.getBlock() instanceof AbstractGlassBlock && !state.is(Blocks.TINTED_GLASS))) {
+                continue;
+            }
+            Vec3 glass = Vec3.atCenterOf(pos);
+            double dist = glass.distanceTo(victim.getEyePosition());
+            // At the edge of your sight, where you would notice it, through glass you can actually see.
+            double gaze = Sight.gazeDot(victim, glass);
+            if (dist < 3.0D || dist > 12.0D || gaze < 0.2D || gaze > 0.88D || !Sight.clearLineToBlock(level, victim, pos)) {
+                continue;
+            }
+            Direction out = Direction.getNearest(glass.x - victim.getX(), 0.0D, glass.z - victim.getZ());
+            if (!open(level, pos.relative(out)) || !open(level, pos.relative(out.getOpposite()))) {
+                // Not glass you look through from where you are (a pane seen edge on, glass against a wall).
+                continue;
+            }
+            Vec3 stand = glass.add(out.getStepX() * ((pane ? 0.0625D : 0.5D) + WindowScene.REACH), 0.0D,
+                    out.getStepZ() * ((pane ? 0.0625D : 0.5D) + WindowScene.REACH));
+            stand = new Vec3(stand.x, pos.getY() - 1, stand.z);
+            BlockPos feet = BlockPos.containing(stand);
+            BlockPos below = pos.relative(out).below();
+            if (!open(level, feet) || !open(level, feet.above()) || !open(level, feet.above(2)) || !open(level, below)
+                    || !level.getBlockState(feet.below()).isFaceSturdy(level, feet.below(), Direction.UP)
+                    || !SpotFinder.isDark(level, stand, safe)) {
+                continue;
+            }
+            windows.add(pos.immutable());
+            spots.add(stand);
+            outs.add(out);
+        }
+        if (windows.isEmpty()) {
+            return null;
+        }
+        int pick = victim.getRandom().nextInt(windows.size());
+        BlockPos window = windows.get(pick);
+        boolean pane = level.getBlockState(window).getBlock() instanceof IronBarsBlock;
+        return TheOneEntity.spawnForScene(level, victim, spots.get(pick), stage, Scene.WINDOW,
+                new WindowScene(window, outs.get(pick), !pane));
+    }
+
+    /** Nothing in the way of a body there. */
+    private static boolean open(ServerLevel level, BlockPos pos) {
+        return level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
     }
 
     private Moments() {

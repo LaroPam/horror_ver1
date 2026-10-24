@@ -151,5 +151,21 @@
       "cornerofeye:claw_scrape1",
       "cornerofeye:claw_scrape2"
     ]
+  },
+  "claw_glass": {
+    "subtitle": "subtitles.cornerofeye.claw_glass",
+    "sounds": [
+      "cornerofeye:claw_scrape1",
+      "cornerofeye:claw_scrape2"
+    ]
+  },
+  "glass_tap": {
+    "subtitle": "subtitles.cornerofeye.glass_tap",
+    "sounds": [
+      {
+        "name": "minecraft:block.glass.hit",
+        "type": "event"
+      }
+    ]
   }
 }

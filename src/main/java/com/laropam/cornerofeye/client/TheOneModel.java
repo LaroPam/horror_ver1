@@ -5,6 +5,7 @@ import com.laropam.cornerofeye.entity.Burrow;
 import com.laropam.cornerofeye.entity.Phase;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.entity.scene.PeekScene;
+import com.laropam.cornerofeye.entity.scene.WindowScene;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.model.HierarchicalModel;
@@ -208,6 +209,7 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
                 this.jaw.xRot = 0.85F;
                 this.head.zRot += Mth.sin(ageInTicks * 2.3F) * 0.2F;
             }
+            case WINDOW -> this.poseWindow(entity, sceneTime, ageInTicks, pitch, headTilt);
             case STILL -> {
                 // Sniffing for you.
                 this.head.xRot += Mth.sin(ageInTicks * 1.3F) * 0.18F;
@@ -525,6 +527,41 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
         this.rightForearm.xRot = this.leftForearm.xRot = 0.15F;
         this.rightThigh.xRot = this.leftThigh.xRot = 0.0F;
         this.rightShin.xRot = this.leftShin.xRot = 0.0F;
+    }
+
+    /**
+     * Bent double outside a window so that its face is against the glass: knees folded and apart, back bowed
+     * forward, head level and cocked, both palms flat on the glass either side of its face with the elbows sticking
+     * up and out like a spider's legs. Scraping, the claws drag slowly down the glass. Snapping back, it straightens.
+     */
+    private void poseWindow(TheOneEntity entity, float time, float ageInTicks, float pitch, float headTilt) {
+        float press = entity.getAnim() == 2 ? 1.0F - smoothstep(time / WindowScene.SNAP_BACK) : 1.0F;
+        float drag = entity.getAnim() == 1 ? smoothstep(time / WindowScene.SCRAPE) : 0.0F;
+        float hipsY = Mth.lerp(press, -2.0F, 9.0F);
+        float body = Mth.lerp(press, 0.28F, 1.1F) + Mth.sin(ageInTicks * 0.05F) * 0.02F;
+        this.hips.y = hipsY;
+        this.body.xRot = body;
+        this.rightThigh.xRot = this.leftThigh.xRot = Mth.lerp(press, -0.05F, -1.15F);
+        this.rightShin.xRot = this.leftShin.xRot = Mth.lerp(press, 0.1F, 2.1F);
+        this.rightThigh.zRot = 0.2F * press;
+        this.leftThigh.zRot = -0.2F * press;
+        this.head.xRot = -body + pitch * 0.3F;
+        this.head.yRot = 0.0F;
+        this.head.zRot = Mth.lerp(press, headTilt, 0.55F + Mth.sin(ageInTicks * 0.04F) * 0.1F);
+        this.jaw.xRot = 0.25F + 0.15F * Mth.sin(ageInTicks * 0.11F);
+        // The wrists stop short of the glass so the claws, hanging on from them, end at it and not through it.
+        float glass = (float) (WindowScene.REACH * 16.0D) - 4.5F;
+        for (int side = 0; side < 2; side++) {
+            // Palms either side of its face; scraping, the claws drag down the glass.
+            float up = (side == 0 ? 24.0F : 21.0F) - 8.0F * drag;
+            float[] arm = this.reachFrom(hipsY, body, glass, up);
+            ModelPart upper = side == 0 ? this.rightArm : this.leftArm;
+            ModelPart lower = side == 0 ? this.rightForearm : this.leftForearm;
+            upper.xRot = Mth.lerp(press, upper.xRot, arm[0] - body);
+            lower.xRot = Mth.lerp(press, lower.xRot, arm[1] - arm[0]);
+            upper.zRot = Mth.lerp(press, upper.zRot, side == 0 ? 0.5F : -0.5F);
+            this.curl(lower, drag > 0.0F ? 1.0F : -0.35F);
+        }
     }
 
     /** Bent right over you from behind, jaw hanging, hands either side of your head. */
