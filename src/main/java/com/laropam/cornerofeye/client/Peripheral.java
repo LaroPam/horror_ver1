@@ -20,6 +20,9 @@ public final class Peripheral {
     /** ...and where it is fully visible. */
     private static final double FADE_END = 0.75D;
 
+    /** -Dcornerofeye.alwaysVisible=true: always fully drawn, for screenshots and trailers. */
+    private static final boolean ALWAYS_VISIBLE = Boolean.getBoolean("cornerofeye.alwaysVisible");
+
     private static double fov = 70.0D;
 
     static void setFov(double value) {
@@ -31,7 +34,7 @@ public final class Peripheral {
             // In the village it is never seen at all.
             return 0.0F;
         }
-        if (entity.getPhase() == Phase.REVEALED || entity.getPhase() == Phase.SCENE) {
+        if (ALWAYS_VISIBLE || entity.getPhase() == Phase.REVEALED || entity.getPhase() == Phase.SCENE) {
             // Caught, or one of its moments: it wants to be seen.
             return 1.0F;
         }

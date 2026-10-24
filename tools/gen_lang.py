@@ -49,6 +49,36 @@ WRITINGS = {
               "ты хорошо смотришься из угла"],
 }
 
+# Menu corruption (MenuHaunt): title splashes, buttons that say the wrong thing for a moment, tooltip whispers.
+SPLASHES = {
+    "en_us": ["It remembers this world!", "Don't turn around!", "Did you leave the light on?", "It's already here!",
+              "Look in the corner!", "We missed you!", "Don't load that world!", "How many nights are left?",
+              "From the corner of your eye!", "It waits in the menu too!"],
+    "ru_ru": ["Оно помнит этот мир!", "Не оборачивайся!", "Ты не выключил свет?", "Оно уже здесь!",
+              "Посмотри в угол!", "Мы скучали!", "Не загружай этот мир!", "Сколько ночей осталось?",
+              "Краем глаза!", "Оно ждёт и в меню!"],
+}
+GLITCHES = {
+    "en_us": ["It is waiting", "Don't leave", "Go back to it", "You are not alone", "Behind you", "Don't look",
+              "It is here", "Stay"],
+    "ru_ru": ["Оно ждёт", "Не уходи", "Вернись к нему", "Ты не один", "Позади тебя", "Не смотри", "Оно здесь",
+              "Останься"],
+}
+TOOLTIPS = {
+    "en_us": {
+        "any": ["it touched this in the night", "warm", "whose is this?", "put it down. put it down. put it down.",
+                "this won't help", "it can see this too", "smells of you", "did you count them?"],
+        "torch": ["fewer than yesterday", "it doesn't like it when there are many", "this one will go out too"],
+        "lantern": ["it knows about this", "shine it in my face", "don't waste it"],
+    },
+    "ru_ru": {
+        "any": ["оно трогало это ночью", "тёплое", "чьё это?", "положи. положи. положи.",
+                "это не поможет", "оно тоже это видит", "пахнет тобой", "ты пересчитывал?"],
+        "torch": ["их меньше, чем вчера", "оно не любит, когда их много", "этот тоже погаснет"],
+        "lantern": ["оно знает про него", "посвети мне в лицо", "не трать зря"],
+    },
+}
+
 WHISPERS = {
     "en_us": ["i see you", "don't look at me", "your torches are going out", "it's so dark here",
               "why are you still here", "you are not alone", "i was here before you", "one more night",
@@ -162,6 +192,7 @@ TEXT = {
         "subtitles.cornerofeye.tinnitus": "Ringing in your ears",
         "subtitles.cornerofeye.timer_tick": "Clock ticks",
         "subtitles.cornerofeye.night_bell": "A bell, far away",
+        "subtitles.cornerofeye.crack": "Something cracks",
         "cornerofeye.night.title": "NIGHT %s",
         "cornerofeye.night.sub.1": "You are not alone here.",
         "cornerofeye.night.sub.2": "Something has noticed you.",
@@ -262,6 +293,7 @@ TEXT = {
         "subtitles.cornerofeye.tinnitus": "Звон в ушах",
         "subtitles.cornerofeye.timer_tick": "Тикают часы",
         "subtitles.cornerofeye.night_bell": "Далёкий колокол",
+        "subtitles.cornerofeye.crack": "Что-то трескается",
         "cornerofeye.night.title": "НОЧЬ %s",
         "cornerofeye.night.sub.1": "Ты здесь не один.",
         "cornerofeye.night.sub.2": "Тебя заметили.",
@@ -349,6 +381,13 @@ if __name__ == "__main__":
             data[f"cornerofeye.sleep.{i}"] = line
         for i, line in enumerate(WRITINGS[lang]):
             data[f"cornerofeye.writing.{i}"] = line
+        for i, line in enumerate(SPLASHES[lang]):
+            data[f"cornerofeye.splash.{i}"] = line
+        for i, line in enumerate(GLITCHES[lang]):
+            data[f"cornerofeye.glitch.{i}"] = line
+        for kind, lines in TOOLTIPS[lang].items():
+            for i, line in enumerate(lines):
+                data[f"cornerofeye.tooltip.{kind}.{i}"] = line
         for chapter, pages in JOURNAL[lang].items():
             for i, page in enumerate(pages):
                 data[f"cornerofeye.journal.{chapter}.{i}"] = page
@@ -361,4 +400,9 @@ if __name__ == "__main__":
     # The Java side counts lines per sign; make sure both languages agree.
     assert [len(s) for s in SIGNS["en_us"]] == [len(s) for s in SIGNS["ru_ru"]]
     assert len(WRITINGS["en_us"]) == len(WRITINGS["ru_ru"]) == 16
+    # MenuHaunt.SPLASHES, GLITCHES and WHISPERS; the torch and lantern lists are fixed at 3.
+    assert len(SPLASHES["en_us"]) == len(SPLASHES["ru_ru"]) == 10
+    assert len(GLITCHES["en_us"]) == len(GLITCHES["ru_ru"]) == 8
+    for lang in TOOLTIPS:
+        assert [len(v) for v in TOOLTIPS[lang].values()] == [8, 3, 3]
     print([len(s) for s in SIGNS["en_us"]])

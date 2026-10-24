@@ -14,6 +14,7 @@ import com.laropam.cornerofeye.registry.ModItems;
 import com.laropam.cornerofeye.registry.ModSounds;
 import com.laropam.cornerofeye.entity.scene.SceneRunner;
 import net.minecraft.ChatFormatting;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -175,6 +176,37 @@ public class TheOneEntity extends Monster {
         this.entityData.define(DATA_SIDE, false);
         this.entityData.define(DATA_STAGE, HauntData.WATCHING);
         this.entityData.define(DATA_DAYS, 0);
+    }
+
+    /**
+     * Nothing about a visit survives a reload. These keys are only read, for posing it with
+     * {@code /summon cornerofeye:the_one ~ ~ ~ {NoAI:1b,Stage:3,Days:9,Crawling:1b,Phase:"SCENE",Scene:"PEEK",Anim:1}}
+     * (trailers, screenshots); the pose keys need NoAI so it doesn't try to act out a scene it doesn't have.
+     */
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.contains("Stage")) {
+            this.stage = Mth.clamp(tag.getInt("Stage"), HauntData.WATCHING, HauntData.HUNTING);
+            this.entityData.set(DATA_STAGE, this.stage);
+        }
+        if (tag.contains("Days")) {
+            this.entityData.set(DATA_DAYS, Math.max(0, tag.getInt("Days")));
+        }
+        if (this.isNoAi()) {
+            this.setCrawling(tag.getBoolean("Crawling"));
+            for (Phase phase : Phase.values()) {
+                if (phase.name().equalsIgnoreCase(tag.getString("Phase"))) {
+                    this.entityData.set(DATA_PHASE, phase.ordinal());
+                }
+            }
+            for (Scene scene : Scene.values()) {
+                if (scene.name().equalsIgnoreCase(tag.getString("Scene"))) {
+                    this.entityData.set(DATA_SCENE, scene.ordinal());
+                }
+            }
+            this.setAnim(tag.getInt("Anim"));
+        }
     }
 
     private void setStage(ServerLevel level, int stage) {

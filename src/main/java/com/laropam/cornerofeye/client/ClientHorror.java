@@ -103,13 +103,21 @@ public final class ClientHorror {
     private static int challengeLength = 1;
     private static int challengeLightNeeded;
 
+    /** The haunt stage of the world we are in, {@link HorrorPacket#DEFEATED}, or 0 outside a world. */
+    static int stage() {
+        return stage;
+    }
+
     // ------------------------------------------------------------- packets
 
     public static void handle(HorrorPacket msg) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         switch (msg.type()) {
-            case SYNC_STAGE -> stage = msg.data();
+            case SYNC_STAGE -> {
+                stage = msg.data();
+                MenuHaunt.remember(stage);
+            }
             case FOOTSTEPS -> {
                 if (player != null) {
                     stepsLeft = msg.data();

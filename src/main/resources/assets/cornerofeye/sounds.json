@@ -132,5 +132,11 @@
     "sounds": [
       "cornerofeye:night_bell"
     ]
+  },
+  "crack": {
+    "subtitle": "subtitles.cornerofeye.crack",
+    "sounds": [
+      "cornerofeye:crack"
+    ]
   }
 }

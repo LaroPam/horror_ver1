@@ -312,6 +312,23 @@ def night_bell():
     return np.tanh(1.2 * (bell + strike)) * env(len(tt), 0.005, 1.5)
 
 
+def crack():
+    """Glass giving way slowly: a creak under it, then sharp ticks running along the crack, faster and faster."""
+    length = 1.4
+    tt = t(length)
+    creak = bandpass(osc_saw(170 + 50 * np.sin(2 * np.pi * 3 * tt)), 150, 1200) * 0.12 * env(len(tt), 0.2, 0.8)
+    ticks = np.zeros(len(tt))
+    when, gap = 0.22, 0.13
+    while when < 1.15:
+        start = int(when * SR)
+        burst = bandpass(noise(0.04), 2000, 9000) * np.exp(-t(0.04) * 180) * (0.5 + rng.random() * 0.5)
+        end = min(len(ticks), start + len(burst))
+        ticks[start:end] += burst[:end - start]
+        when += gap * (0.5 + rng.random())
+        gap = max(gap * 0.8, 0.015)
+    return np.tanh(2.0 * (ticks + creak)) * env(len(tt), 0.01, 0.3)
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     write("the_one_breath1", breath(0), -3)
@@ -334,4 +351,5 @@ if __name__ == "__main__":
     write("dread_loop", dread_loop(), -3)
     write("timer_tick", timer_tick(), -2)
     write("night_bell", night_bell(), -2)
+    write("crack", crack(), -3)
     print("sounds written to", os.path.normpath(OUT))

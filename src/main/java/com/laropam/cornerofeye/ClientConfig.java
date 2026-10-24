@@ -18,6 +18,9 @@ public final class ClientConfig {
     public static final ForgeConfigSpec.BooleanValue MUFFLE_WORLD = BUILDER
             .comment("When it is close, the rest of the world goes quiet and slow, so you hear your heart and it.")
             .define("muffleWorld", true);
+    public static final ForgeConfigSpec.BooleanValue MENU_CORRUPTION = BUILDER
+            .comment("It follows you out of the world: the title screen, pause menu, inventory and tooltips change as it gets worse.")
+            .define("menuCorruption", true);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 

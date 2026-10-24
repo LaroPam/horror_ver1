@@ -28,6 +28,7 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> DREAD_LOOP = register("dread_loop");
     public static final RegistryObject<SoundEvent> TIMER_TICK = register("timer_tick");
     public static final RegistryObject<SoundEvent> NIGHT_BELL = register("night_bell");
+    public static final RegistryObject<SoundEvent> CRACK = register("crack");
 
     private static RegistryObject<SoundEvent> register(String name) {
         return SOUNDS.register(name, () -> SoundEvent.createVariableRangeEvent(CornerOfTheEye.id(name)));
