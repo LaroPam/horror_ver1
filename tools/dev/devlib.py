@@ -12,6 +12,8 @@ import time
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 OUT = os.path.join(ROOT, "build", "devshots")
 ENV = {"DISPLAY": ":99", "PATH": "/usr/bin:/bin"}
+# Must match the Xvfb screen and the client window (DEV_SIZE=1920x1080 for promo renders).
+SIZE = os.environ.get("DEV_SIZE", "1280x720")
 os.makedirs(OUT, exist_ok=True)
 
 
@@ -21,7 +23,7 @@ def rcon(*cmds):
 
 
 def shot(name):
-    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "x11grab", "-video_size", "1280x720", "-i", ":99",
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "x11grab", "-video_size", SIZE, "-i", ":99",
                     "-frames:v", "1", os.path.join(OUT, name + ".png")], env=ENV)
     return os.path.join(OUT, name + ".png")
 
