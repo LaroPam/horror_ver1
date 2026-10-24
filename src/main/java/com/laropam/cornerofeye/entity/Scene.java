@@ -24,7 +24,9 @@ public enum Scene {
     /** Comes for you on all fours out of the dark, fast. */
     CHASE(3),
     /** Your room is lit, so it bends down to the window and looks in, palms on the glass. */
-    WINDOW(2);
+    WINDOW(2),
+    /** You wake up and can't move. It is standing at the foot of the bed, leaning closer. Only on waking. */
+    PARALYSIS(2);
 
     /** Stage at which the haunt starts using this moment on its own. */
     public final int minStage;

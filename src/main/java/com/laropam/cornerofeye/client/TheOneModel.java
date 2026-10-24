@@ -4,6 +4,7 @@ import com.laropam.cornerofeye.CornerOfTheEye;
 import com.laropam.cornerofeye.entity.Burrow;
 import com.laropam.cornerofeye.entity.Phase;
 import com.laropam.cornerofeye.entity.TheOneEntity;
+import com.laropam.cornerofeye.entity.scene.ParalysisScene;
 import com.laropam.cornerofeye.entity.scene.PeekScene;
 import com.laropam.cornerofeye.entity.scene.WindowScene;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -210,6 +211,7 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
                 this.head.zRot += Mth.sin(ageInTicks * 2.3F) * 0.2F;
             }
             case WINDOW -> this.poseWindow(entity, sceneTime, ageInTicks, pitch, headTilt);
+            case PARALYSIS -> this.poseParalysis(sceneTime, ageInTicks, pitch);
             case STILL -> {
                 // Sniffing for you.
                 this.head.xRot += Mth.sin(ageInTicks * 1.3F) * 0.18F;
@@ -562,6 +564,27 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
             upper.zRot = Mth.lerp(press, upper.zRot, side == 0 ? 0.5F : -0.5F);
             this.curl(lower, drag > 0.0F ? 1.0F : -0.35F);
         }
+    }
+
+    /**
+     * At the foot of the bed, leaning slowly over you as you lie there unable to move: back bending, head tipping
+     * further and further over, jaw sinking open, one hand rising towards your face with the fingers spread.
+     */
+    private void poseParalysis(float time, float ageInTicks, float pitch) {
+        float lean = smoothstep(time / ParalysisScene.LENGTH);
+        float body = Mth.lerp(lean, 0.22F, 0.95F);
+        this.body.xRot = body;
+        this.head.xRot = -body + pitch;
+        this.head.zRot = 0.45F + 0.55F * lean + Mth.sin(ageInTicks * 0.08F) * 0.06F;
+        this.jaw.xRot = Mth.lerp(lean, 0.1F, 0.95F);
+        // The near hand comes up to your face; the other hangs.
+        this.rightArm.xRot = Mth.lerp(smoothstep(time / (ParalysisScene.LENGTH * 0.7F)), -body + 0.05F, -1.5F - body);
+        this.rightArm.zRot = 0.1F;
+        this.rightForearm.xRot = Mth.lerp(lean, -0.08F, -0.35F);
+        this.curl(this.rightForearm, -0.45F);
+        this.leftArm.xRot = -body + 0.08F;
+        this.leftArm.zRot = -0.14F;
+        this.leftForearm.xRot = -0.08F;
     }
 
     /** Bent right over you from behind, jaw hanging, hands either side of your head. */

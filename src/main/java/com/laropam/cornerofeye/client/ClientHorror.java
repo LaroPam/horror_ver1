@@ -37,6 +37,7 @@ import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.client.event.MovementInputUpdateEvent;
 import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.client.event.sound.PlaySoundEvent;
 import net.minecraftforge.client.gui.overlay.ForgeGui;
@@ -100,6 +101,13 @@ public final class ClientHorror {
     private static float blood;
     private static float bloodO;
 
+    /** Sleep paralysis: ticks left of not being able to move or look away, and where you are stuck looking. */
+    private static int paralysisTicks;
+    private static float frozenYaw;
+    private static float frozenPitch;
+    /** The last few ticks of it: your eyes close. */
+    private static final int BLINK = 8;
+
     private static int challengeType = -1;
     private static int challengeTicks;
     private static int challengeLength = 1;
@@ -160,6 +168,14 @@ public final class ClientHorror {
                 cardTicks = CARD_LENGTH;
             }
             case BLOOD_MOON -> bloodMoon = msg.data() == 1;
+            case PARALYSIS -> {
+                paralysisTicks = msg.data();
+                if (player != null) {
+                    frozenYaw = player.getYRot();
+                    frozenPitch = player.getXRot();
+                }
+                dreadSpike = 1.0F;
+            }
             case SMOTHER -> {
                 if (LightSuppression.clientUpdate(msg.pos(), msg.data()) && minecraft.level != null) {
                     BlockPos pos = msg.pos();
@@ -198,6 +214,16 @@ public final class ClientHorror {
             jumpscareTicks--;
         }
         tickChallenge(minecraft);
+        if (paralysisTicks > 0) {
+            // You can't move. You can't even look away.
+            paralysisTicks--;
+            player.setYRot(frozenYaw);
+            player.setXRot(frozenPitch);
+            player.yRotO = frozenYaw;
+            player.xRotO = frozenPitch;
+            player.setYHeadRot(frozenYaw);
+            dreadSpike = Math.max(dreadSpike, 0.9F);
+        }
         tickFootsteps(level, player);
         tickMining(level);
         tickKnock(level);
@@ -408,6 +434,7 @@ public final class ClientHorror {
         blood = bloodO = 0.0F;
         knockTicks = -1;
         jumpscareTicks = 0;
+        paralysisTicks = 0;
         challengeType = -1;
         flash = flashO = 0.0F;
         dread = dreadO = dreadSpike = 0.0F;
@@ -470,8 +497,27 @@ public final class ClientHorror {
         event.setBlue(event.getBlue() * dim);
     }
 
+    /** Paralysed: no walking, no jumping, no sneaking away. */
+    @SubscribeEvent
+    public static void onMovementInput(MovementInputUpdateEvent event) {
+        if (paralysisTicks > 0) {
+            event.getInput().forwardImpulse = 0.0F;
+            event.getInput().leftImpulse = 0.0F;
+            event.getInput().up = event.getInput().down = event.getInput().left = event.getInput().right = false;
+            event.getInput().jumping = false;
+            event.getInput().shiftKeyDown = false;
+        }
+    }
+
     @SubscribeEvent
     public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
+        if (paralysisTicks > 0) {
+            // Stuck looking at it, head tipped on the pillow, the tiniest tremor of trying to move.
+            float t = Minecraft.getInstance().level != null ? Minecraft.getInstance().level.getGameTime() + (float) event.getPartialTick() : 0.0F;
+            event.setYaw(frozenYaw + Mth.sin(t * 1.7F) * 0.15F);
+            event.setPitch(frozenPitch + Mth.sin(t * 2.3F) * 0.1F);
+            event.setRoll(event.getRoll() + 9.0F);
+        }
         if (!ClientConfig.SCREEN_EFFECTS.get()) {
             return;
         }
@@ -515,6 +561,15 @@ public final class ClientHorror {
         }
         if (challengeType >= 0) {
             renderChallenge(graphics, partialTick, width, height);
+        }
+        if (paralysisTicks > 0) {
+            // Eyes barely open: dark all round, then a blink, and when they open again it is gone.
+            int edge = (int) (height * 0.16F);
+            graphics.fillGradient(0, 0, width, edge, 0xF0000000, 0x00000000);
+            graphics.fillGradient(0, height - edge, width, height, 0x00000000, 0xF0000000);
+            if (paralysisTicks <= BLINK) {
+                graphics.fill(0, 0, width, height, 0xFF000000);
+            }
         }
         float flashAmount = Mth.lerp(partialTick, flashO, flash);
         if (flashAmount > 0.01F && ClientConfig.SCREEN_EFFECTS.get()) {

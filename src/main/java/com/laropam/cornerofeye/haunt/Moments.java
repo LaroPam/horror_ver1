@@ -1,12 +1,15 @@
 package com.laropam.cornerofeye.haunt;
 
 import com.laropam.cornerofeye.HorrorConfig;
+import com.laropam.cornerofeye.network.HorrorNetwork;
+import com.laropam.cornerofeye.network.HorrorPacket;
 import com.laropam.cornerofeye.entity.Scene;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.entity.scene.BehindScene;
 import com.laropam.cornerofeye.entity.scene.CeilingScene;
 import com.laropam.cornerofeye.entity.scene.ChaseScene;
 import com.laropam.cornerofeye.entity.scene.MassacreScene;
+import com.laropam.cornerofeye.entity.scene.ParalysisScene;
 import com.laropam.cornerofeye.entity.scene.UnderwaterScene;
 import com.laropam.cornerofeye.entity.scene.DoorScene;
 import com.laropam.cornerofeye.entity.scene.LightsOutScene;
@@ -25,6 +28,7 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.AbstractGlassBlock;
+import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.IronBarsBlock;
@@ -44,7 +48,8 @@ public final class Moments {
     public static TheOneEntity startRandom(ServerPlayer victim, int stage) {
         List<Scene> scenes = new ArrayList<>();
         for (Scene scene : Scene.values()) {
-            if (scene != Scene.NONE && stage >= scene.minStage) {
+            // Paralysis only ever comes when you wake up.
+            if (scene != Scene.NONE && scene != Scene.PARALYSIS && stage >= scene.minStage) {
                 scenes.add(scene);
             }
         }
@@ -79,6 +84,7 @@ public final class Moments {
             case MASSACRE -> massacre(level, victim, stage, forced);
             case CHASE -> chase(level, victim, stage);
             case WINDOW -> window(level, victim, stage);
+            case PARALYSIS -> paralysis(level, victim, stage);
             case NONE -> null;
         };
     }
@@ -369,6 +375,49 @@ public final class Moments {
         boolean pane = level.getBlockState(window).getBlock() instanceof IronBarsBlock;
         return TheOneEntity.spawnForScene(level, victim, spots.get(pick), stage, Scene.WINDOW,
                 new WindowScene(window, outs.get(pick), !pane));
+    }
+
+    // --------------------------------------------------------------- paralysis
+
+    /**
+     * Just woken up: it stands at the foot of the bed you slept in (or right in front of you), and you are turned to
+     * face it and held there.
+     */
+    @Nullable
+    private static TheOneEntity paralysis(ServerLevel level, ServerPlayer victim, int stage) {
+        // A few steps off, past the foot of the bed if there is one, so you see all of it before it comes closer.
+        Vec3 ahead = victim.getViewVector(1.0F).multiply(1.0D, 0.0D, 1.0D);
+        BlockPos head = HomeVisit.bedOf(victim);
+        if (head != null && head.distSqr(victim.blockPosition()) < 5 * 5) {
+            Direction facing = level.getBlockState(head).getValue(BedBlock.FACING);
+            ahead = new Vec3(-facing.getStepX(), 0.0D, -facing.getStepZ());
+        }
+        if (ahead.lengthSqr() < 1.0E-4D) {
+            return null;
+        }
+        Vec3 spot = null;
+        for (double dist = 3.4D; dist >= 2.2D && spot == null; dist -= 0.6D) {
+            BlockPos ground = SpotFinder.findGround(level, BlockPos.containing(victim.position().add(ahead.normalize().scale(dist))), 2);
+            if (ground != null && open(level, ground.above())) {
+                spot = Vec3.atBottomCenterOf(ground);
+            }
+        }
+        if (spot == null) {
+            return null;
+        }
+        // Turned to face it, eyes on its face.
+        Vec3 eyes = victim.getEyePosition();
+        Vec3 face = spot.add(0.0D, 1.9D, 0.0D).subtract(eyes);
+        float yaw = (float) (Math.toDegrees(Math.atan2(face.z, face.x)) - 90.0D);
+        float pitch = (float) -Math.toDegrees(Math.atan2(face.y, face.horizontalDistance()));
+        victim.connection.teleport(victim.getX(), victim.getY(), victim.getZ(), yaw, pitch);
+        Vec3 closer = spot.add(victim.position().subtract(spot).multiply(1.0D, 0.0D, 1.0D).normalize().scale(
+                Math.max(0.0D, spot.distanceTo(victim.position()) - 1.4D)));
+        TheOneEntity one = TheOneEntity.spawnForScene(level, victim, spot, stage, Scene.PARALYSIS, new ParalysisScene(spot, closer));
+        if (one != null) {
+            HorrorNetwork.send(victim, HorrorPacket.Type.PARALYSIS, ParalysisScene.LENGTH + 6);
+        }
+        return one;
     }
 
     /** Nothing in the way of a body there. */

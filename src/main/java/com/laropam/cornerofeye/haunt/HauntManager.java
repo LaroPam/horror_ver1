@@ -3,6 +3,7 @@ package com.laropam.cornerofeye.haunt;
 import com.laropam.cornerofeye.CornerOfTheEye;
 import com.laropam.cornerofeye.HorrorConfig;
 import com.laropam.cornerofeye.entity.Phase;
+import com.laropam.cornerofeye.entity.Scene;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.network.HorrorNetwork;
 import com.laropam.cornerofeye.network.HorrorPacket;
@@ -399,8 +400,15 @@ public final class HauntManager {
         }
         // Woke up in the morning after a full night.
         HauntData data = HauntData.get(player.server);
-        if (data.isBanished() || data.getStage() < HauntData.APPROACHING || !HorrorConfig.ALLOW_BLOCK_CHANGES.get()
-                || player.getRandom().nextFloat() > 0.3F) {
+        if (data.isBanished() || data.getStage() < HauntData.APPROACHING || player.getRandom().nextFloat() > 0.35F) {
+            return;
+        }
+        if (findTheOne(player.serverLevel()) == null && player.getRandom().nextFloat() < 0.45F) {
+            // You are awake and you can't move.
+            schedule(10, () -> Moments.start(player, data.getStage(), Scene.PARALYSIS, true));
+            return;
+        }
+        if (!HorrorConfig.ALLOW_BLOCK_CHANGES.get()) {
             return;
         }
         BlockPos bed = HomeVisit.bedOf(player);

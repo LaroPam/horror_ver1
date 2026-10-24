@@ -35,7 +35,9 @@ public record HorrorPacket(Type type, BlockPos pos, int data) {
         /** Nightfall card: data = night number, pos.x = 1 under a blood moon. */
         NIGHT_CARD,
         /** data = 1 while the moon is red. */
-        BLOOD_MOON
+        BLOOD_MOON,
+        /** You can't move or look away for data ticks, and at the very end you blink. */
+        PARALYSIS
     }
 
     public static final int DEFEATED = 99;
