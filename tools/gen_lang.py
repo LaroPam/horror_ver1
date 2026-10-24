@@ -32,6 +32,23 @@ SIGNS = {
     ],
 }
 
+# Written in blood on walls (Marks.MESSAGES must match the count). It doesn't think like a person, and it
+# doesn't quite know how words work; WritingRenderer mangles the letters further.
+WRITINGS = {
+    "en_us": ["WARM WARM WARM YOURS", "you have too few fingers", "i tried on your voice", "you sleep loudly",
+              "COUNTING YOUR RIBS 1 2 3 4", "dont blink. i will blink for you", "it smells of you on the inside",
+              "open your mouth wider than you can", "WE WE WE WE WE WE", "i stand in the corner every night",
+              "they stopped screaming. so will you", "skin is a door", "i am learning to talk like you",
+              "why do you close your eyes when i am near", "LIGHT MORE. I LIKE HOW THEY GO OUT",
+              "you look good from the corner"],
+    "ru_ru": ["ТЕПЛО ТЕПЛО ТЕПЛО ТВОЁ", "у тебя слишком мало пальцев", "я примерял твой голос", "ты спишь громко",
+              "СЧИТАЮ ТВОИ РЁБРА 1 2 3 4", "не моргай. я моргну за тебя", "здесь пахнет тобой изнутри",
+              "открой рот шире чем можешь", "МЫ МЫ МЫ МЫ МЫ МЫ", "я стою в углу каждую ночь",
+              "они перестали кричать. ты тоже перестанешь", "кожа это дверь", "я учусь говорить как ты",
+              "почему ты закрываешь глаза когда я рядом", "ЗАЖГИ ЕЩЁ. МНЕ НРАВИТСЯ КАК ОНИ ГАСНУТ",
+              "ты хорошо смотришься из угла"],
+}
+
 WHISPERS = {
     "en_us": ["i see you", "don't look at me", "your torches are going out", "it's so dark here",
               "why are you still here", "you are not alone", "i was here before you", "one more night",
@@ -170,6 +187,8 @@ TEXT = {
         "block.cornerofeye.unlit_wall_torch": "Burnt-out Torch",
         "entity.cornerofeye.corpse": "Corpse",
         "block.cornerofeye.blood": "Blood",
+        "block.cornerofeye.mark": "Marks",
+        "block.cornerofeye.writing": "Writing",
         "cornerofeye.challenge.still": "DON'T MOVE",
         "cornerofeye.challenge.still.hint": "Crouch and freeze. It finds you by sound.",
         "cornerofeye.message.survived": "It's gone. For now.",
@@ -268,6 +287,8 @@ TEXT = {
         "block.cornerofeye.unlit_wall_torch": "Потухший факел",
         "entity.cornerofeye.corpse": "Труп",
         "block.cornerofeye.blood": "Кровь",
+        "block.cornerofeye.mark": "Следы",
+        "block.cornerofeye.writing": "Надпись",
         "cornerofeye.challenge.still": "НЕ ДВИГАЙСЯ",
         "cornerofeye.challenge.still.hint": "Присядь и замри. Оно ищет тебя по звуку.",
         "cornerofeye.message.survived": "Оно ушло. Пока что.",
@@ -324,6 +345,8 @@ if __name__ == "__main__":
             data[f"cornerofeye.said.{i}"] = line
         for i, line in enumerate(SLEEP[lang]):
             data[f"cornerofeye.sleep.{i}"] = line
+        for i, line in enumerate(WRITINGS[lang]):
+            data[f"cornerofeye.writing.{i}"] = line
         for chapter, pages in JOURNAL[lang].items():
             for i, page in enumerate(pages):
                 data[f"cornerofeye.journal.{chapter}.{i}"] = page
@@ -335,4 +358,5 @@ if __name__ == "__main__":
             f.write("\n")
     # The Java side counts lines per sign; make sure both languages agree.
     assert [len(s) for s in SIGNS["en_us"]] == [len(s) for s in SIGNS["ru_ru"]]
+    assert len(WRITINGS["en_us"]) == len(WRITINGS["ru_ru"]) == 16
     print([len(s) for s in SIGNS["en_us"]])

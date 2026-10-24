@@ -7,6 +7,7 @@ import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.Blood;
 import com.laropam.cornerofeye.haunt.HauntManager;
 import com.laropam.cornerofeye.haunt.Lights;
+import com.laropam.cornerofeye.haunt.Marks;
 import com.laropam.cornerofeye.haunt.Sight;
 import com.laropam.cornerofeye.haunt.SpotFinder;
 import com.laropam.cornerofeye.network.HorrorNetwork;
@@ -86,6 +87,9 @@ public final class MassacreScene implements SceneRunner {
         }
         if (this.targets.isEmpty() || age > GIVE_UP) {
             this.quietSince = age;
+            Marks.writing(level, one.blockPosition(), 2, 20);
+            Marks.writing(level, one.blockPosition(), 2, 20);
+            Marks.scratches(level, one.blockPosition());
             one.setAnim(1);
             victim.sendSystemMessage(Component.translatable("cornerofeye.message.massacre_done").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
             HorrorNetwork.playSoundTo(victim, ModSounds.DRONE.get(), SoundSource.HOSTILE, victim.getEyePosition(), 0.9F, 0.55F);

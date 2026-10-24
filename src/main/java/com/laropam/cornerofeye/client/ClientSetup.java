@@ -1,6 +1,7 @@
 package com.laropam.cornerofeye.client;
 
 import com.laropam.cornerofeye.CornerOfTheEye;
+import com.laropam.cornerofeye.registry.ModBlocks;
 import com.laropam.cornerofeye.registry.ModEntities;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
@@ -14,6 +15,7 @@ public final class ClientSetup {
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.THE_ONE.get(), TheOneRenderer::new);
         event.registerEntityRenderer(ModEntities.CORPSE.get(), CorpseRenderer::new);
+        event.registerBlockEntityRenderer(ModBlocks.WRITING_ENTITY.get(), WritingRenderer::new);
     }
 
     @SubscribeEvent

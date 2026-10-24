@@ -15,7 +15,10 @@ public enum HauntEvent {
     WHISPER(2, 6, HauntEvents::whisper),
     LIGHTS_OUT(2, 6, HauntEvents::lightsOut),
     FAKE_CHAT(2, 4, HauntEvents::fakeChat),
-    SIGN(2, 3, HauntEvents::sign);
+    SIGN(2, 3, HauntEvents::sign),
+    SCRATCHES(1, 4, c -> Marks.scratches(c.level(), c.player().blockPosition())),
+    HANDPRINTS(2, 3, c -> Marks.handprintTrail(c.level(), c.player().position())),
+    WRITING(2, 3, c -> Marks.writing(c.level(), c.player().blockPosition(), 5, 14));
 
     public final int minStage;
     private final int weight;

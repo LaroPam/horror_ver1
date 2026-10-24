@@ -39,7 +39,8 @@ public final class Nights {
     private static void nightFalls(MinecraftServer server, HauntData data, int stage) {
         ServerLevel overworld = server.overworld();
         float chance = stage >= HauntData.HUNTING ? 0.35F : stage == HauntData.APPROACHING ? 0.15F : 0.0F;
-        boolean blood = Finale.isDue(data) || overworld.random.nextFloat() < chance;
+        // Dawn always clears it, so if it is already set now, /cornerofeye bloodmoon on asked for tonight.
+        boolean blood = data.isBloodMoon() || Finale.isDue(data) || overworld.random.nextFloat() < chance;
         data.setBloodMoon(blood);
         int night = (int) Math.min(999, data.getDays() + 1);
         boolean newNight = night != data.getLastCardNight();

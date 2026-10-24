@@ -531,6 +531,63 @@ def paint_blood_moon():
     img.save(os.path.join(ROOT, "environment", "blood_moon.png"))
 
 
+def paint_marks():
+    """Wall and floor decals (MarkBlock): its three long fingers, gouged into the wall or printed in blood."""
+    # Claw gouges: three grooves dragged diagonally, dark inside with a pale torn lip, tapering at both ends.
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    for i in range(3):
+        x0, x1 = 7.5 + i * 3.2, 0.8 + i * 3.2
+        for step in range(60):
+            t = step / 59.0
+            x = x0 + (x1 - x0) * t - 1.2 * t * (1.0 - t)
+            y = 0.5 + 15.0 * t
+            if 0.08 < t < 0.92 or rng.random() < 0.5:
+                px, py = int(x), int(y)
+                img.putpixel((px, py), jitter((26, 20, 18), 6))
+                if 0.15 < t < 0.8 and px + 1 < 16:
+                    img.putpixel((px + 1, py), jitter((96, 88, 80), 8))
+    # A little of it is still on the wall where the claws went in.
+    for (x, y) in [(7, 1), (10, 1), (13, 1), (14, 2)]:
+        img.putpixel((x, y), jitter(BLOOD_DARK, 6))
+    img.save(os.path.join(ROOT, "block", "mark_scratch.png"))
+
+    # Handprint: a small palm and three fingers far too long, knuckles pressed harder than the rest.
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    def dab(x, y, color, chance=0.95):
+        if 0 <= x < 16 and 0 <= y < 16 and rng.random() < chance:
+            img.putpixel((x, y), jitter(color, 8))
+    for y in range(10, 16):
+        for x in range(5, 11):
+            if (x in (5, 10)) and (y in (10, 15)):
+                continue
+            dab(x, y, BLOOD_WET if 6 <= x <= 9 and 11 <= y <= 14 else BLOOD)
+    for (bx, lean) in [(5.5, -0.42), (7.8, -0.05), (10.0, 0.38)]:
+        for k in range(11):
+            x = int(round(bx + lean * k))
+            dab(x, 10 - k, BLOOD if k < 9 else BLOOD_DARK, 1.0)
+            if k in (3, 4, 7):
+                dab(x + 1, 10 - k, BLOOD_WET, 1.0)
+    for (x, y) in [(12, 12), (13, 14), (3, 13), (14, 7), (2, 9)]:
+        dab(x, y, BLOOD_DARK, 1.0)
+    img.save(os.path.join(ROOT, "block", "mark_hand.png"))
+
+    # Smear: a hand pressed flat and dragged down, three streaks thinning out.
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    for y in range(1, 5):
+        for x in range(4, 12):
+            if rng.random() < 0.9:
+                img.putpixel((x, y), jitter(BLOOD_WET if y < 3 else BLOOD, 8))
+    for (sx, length) in [(5, 9), (8, 11), (10, 7)]:
+        for y in range(5, 5 + length):
+            x = sx + (1 if y > 9 and sx > 8 else 0)
+            if rng.random() < 0.92:
+                img.putpixel((x, y), jitter(BLOOD if y < 5 + length - 3 else BLOOD_DARK, 8))
+            if y < 9 and x + 1 < 16:
+                img.putpixel((x + 1, y), jitter(BLOOD_DARK, 6))
+        img.putpixel((sx, min(15, 5 + length)), jitter(BLOOD_DARK, 6))
+    img.save(os.path.join(ROOT, "block", "mark_smear.png"))
+
+
 if __name__ == "__main__":
     for sub in ("entity", "gui", "item"):
         os.makedirs(os.path.join(ROOT, sub), exist_ok=True)
@@ -545,4 +602,5 @@ if __name__ == "__main__":
     paint_corpse_blood()
     paint_unlit_torch()
     paint_blood_moon()
+    paint_marks()
     print("textures written to", os.path.normpath(ROOT))
