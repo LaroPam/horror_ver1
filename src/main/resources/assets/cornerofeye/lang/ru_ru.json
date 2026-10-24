@@ -238,5 +238,7 @@
   "cornerofeye.sign.8.1": "факелы",
   "cornerofeye.sign.9.0": "только",
   "cornerofeye.sign.9.1": "краем",
-  "cornerofeye.sign.9.2": "глаза"
+  "cornerofeye.sign.9.2": "глаза",
+  "commands.cornerofeye.visit": "Оно побывало дома у %s.",
+  "commands.cornerofeye.visit.failed": "Нет кровати, или кто-то дома."
 }

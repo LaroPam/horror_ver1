@@ -100,6 +100,7 @@ public final class HauntManager {
                 continue;
             }
             Journal.tick(player, data, stage);
+            HomeVisit.tick(player, data, stage);
             tickEvents(player, stage);
         }
         directTheOne(server, data, stage);

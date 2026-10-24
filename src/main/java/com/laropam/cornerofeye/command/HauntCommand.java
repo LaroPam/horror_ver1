@@ -7,6 +7,7 @@ import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntEvent;
 import com.laropam.cornerofeye.haunt.HauntManager;
+import com.laropam.cornerofeye.haunt.HomeVisit;
 import com.laropam.cornerofeye.haunt.Nightmares;
 import com.laropam.cornerofeye.haunt.Journal;
 import com.laropam.cornerofeye.haunt.Moments;
@@ -20,6 +21,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -72,6 +74,10 @@ public final class HauntCommand {
                         .executes(ctx -> dream(ctx, ctx.getSource().getPlayerOrException()))
                         .then(Commands.argument("target", EntityArgument.player())
                                 .executes(ctx -> dream(ctx, EntityArgument.getPlayer(ctx, "target")))))
+                .then(Commands.literal("visit")
+                        .executes(ctx -> visit(ctx, ctx.getSource().getPlayerOrException()))
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(ctx -> visit(ctx, EntityArgument.getPlayer(ctx, "target")))))
                 .then(Commands.literal("bloodmoon")
                         .then(Commands.literal("on").executes(ctx -> bloodMoon(ctx, true)))
                         .then(Commands.literal("off").executes(ctx -> bloodMoon(ctx, false))))
@@ -179,6 +185,17 @@ public final class HauntCommand {
             return 0;
         }
         ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.dream", target.getDisplayName()), true);
+        return 1;
+    }
+
+    /** It goes through the target's home right now (as long as nobody is in it). */
+    private static int visit(CommandContext<CommandSourceStack> ctx, ServerPlayer target) {
+        BlockPos bed = HomeVisit.bedOf(target);
+        if (bed == null || !HomeVisit.visit(target.server.overworld(), bed)) {
+            ctx.getSource().sendFailure(Component.translatable("commands.cornerofeye.visit.failed"));
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.visit", target.getDisplayName()), true);
         return 1;
     }
 

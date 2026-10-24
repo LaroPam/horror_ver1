@@ -8,18 +8,22 @@ def packet(rid, kind, body):
     data = struct.pack('<ii', rid, kind) + body.encode('utf-8') + b'\x00\x00'
     return struct.pack('<i', len(data)) + data
 
-def recv(s):
-    raw = b''
-    while len(raw) < 4:
-        raw += s.recv(4 - len(raw))
-    n = struct.unpack('<i', raw)[0]
+def read(s, n):
     data = b''
     while len(data) < n:
-        data += s.recv(n - len(data))
+        chunk = s.recv(n - len(data))
+        if not chunk:
+            raise ConnectionError('the server closed the RCON connection')
+        data += chunk
+    return data
+
+def recv(s):
+    n = struct.unpack('<i', read(s, 4))[0]
+    data = read(s, n)
     rid, kind = struct.unpack('<ii', data[:8])
     return data[8:-2].decode('utf-8', 'replace')
 
-s = socket.create_connection(('127.0.0.1', 25575))
+s = socket.create_connection(('127.0.0.1', 25575), timeout=60)
 s.sendall(packet(1, 3, 'test')); recv(s)
 for cmd in sys.argv[1:]:
     if cmd.startswith('sleep '):
