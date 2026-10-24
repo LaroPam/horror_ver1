@@ -121,22 +121,22 @@ public final class Burrow {
         Vec3 move = next.subtract(pos);
         Vec3 flat = new Vec3(move.x, 0.0D, move.z);
         Vec3 ahead = flat.lengthSqr() > 1.0E-6D ? flat.normalize() : Vec3.directionFromRotation(0.0F, this.one.getYRot());
+        // Along the way it is going, slope included: a tunnel up or down a hill follows the slope.
+        double steep = flat.lengthSqr() > 1.0E-6D ? move.y / flat.length() : 0.0D;
+        Vec3 along = steep > 2.0D || steep < -2.0D ? ahead : new Vec3(ahead.x, steep, ahead.z).normalize();
         double scale = this.one.getVisualScale();
         BlockPos insideLow = BlockPos.containing(pos.add(0.0D, 0.1D, 0.0D));
         BlockPos insideHigh = BlockPos.containing(pos.add(0.0D, 0.6D, 0.0D));
-        Vec3 head = next.add(ahead.scale(HEAD * scale));
-        Vec3 hands = next.add(ahead.scale(REACH * 0.85D * scale));
+        Vec3 hips = next.add(0.0D, 0.45D, 0.0D);
         Vec3[] probes = {
-                next.add(ahead.scale(REACH * scale)).add(0.0D, 0.45D, 0.0D),
-                move.y > 0.01D ? hands.add(0.0D, 1.05D, 0.0D) : null,
-                move.y < -0.01D ? hands.add(0.0D, -0.05D, 0.0D) : null,
-                head.add(0.0D, 0.45D, 0.0D),
-                next.add(0.0D, 0.45D, 0.0D),
-                next.add(0.0D, 0.05D, 0.0D),
+                hips.add(along.scale(REACH * scale)),
+                hips.add(along.scale(HEAD * scale)),
+                // Straight up or down a shaft.
+                steep > 2.0D ? hips.add(ahead.scale(0.4D)).add(0.0D, 1.0D, 0.0D) : null,
+                steep < -2.0D ? hips.add(ahead.scale(0.4D)).add(0.0D, -1.0D, 0.0D) : null,
+                hips,
         };
-        int[] directions = {FORWARD, UP, DOWN, FORWARD, -1, -1};
-        for (int i = 0; i < probes.length; i++) {
-            Vec3 probe = probes[i];
+        for (Vec3 probe : probes) {
             if (probe == null) {
                 continue;
             }
@@ -147,11 +147,10 @@ public final class Burrow {
             BlockState state = level.getBlockState(cell);
             if (!state.getCollisionShape(level, cell).isEmpty() && state.getDestroySpeed(level, cell) >= 0.0F
                     && ForgeEventFactory.onEntityDestroyBlock(this.one, cell, state)) {
-                int direction = directions[i];
-                if (direction < 0) {
-                    // Around its hips while climbing or going down a slope.
-                    direction = cell.getY() > insideLow.getY() ? UP : cell.getY() < insideLow.getY() ? DOWN : FORWARD;
-                }
+                // Right over or under it: a shaft. Anywhere ahead, even up or down a slope: in front of its face.
+                Vec3 to = Vec3.atCenterOf(cell).subtract(hips);
+                boolean shaft = to.horizontalDistance() < 1.2D;
+                int direction = shaft && to.y > 0.6D ? UP : shaft && to.y < -0.6D ? DOWN : FORWARD;
                 return new Obstacle(cell, direction);
             }
         }
@@ -171,13 +170,13 @@ public final class Burrow {
         // Once it is in the rock it doesn't stop to listen, and it goes faster.
         boolean continuing = level.getGameTime() - this.lastBroke < 60L;
         if (continuing) {
-            ticks *= 0.45D;
+            ticks *= 0.3D;
         }
         this.listen = continuing ? 0 : LISTEN;
         this.digPos = cell.immutable();
         this.digState = state;
         this.digTicks = 0;
-        this.digLength = this.listen + (int) Mth.clamp(ticks, 14.0D, 200.0D);
+        this.digLength = this.listen + (int) Mth.clamp(ticks, 10.0D, 200.0D);
 
         if (direction == FORWARD) {
             this.one.face(Vec3.atCenterOf(cell));

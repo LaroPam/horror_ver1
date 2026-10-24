@@ -132,6 +132,8 @@ public class TheOneEntity extends Monster {
     private final Burrow burrow = new Burrow(this);
     /** Has torn its way through something on this hunt: from now on, wherever there is room, it gets up and walks. */
     private boolean upright;
+    /** Ticks left of getting up after crawling out: it doesn't move until it has unfolded. */
+    private int riseTicks;
     /** Client-side: ticks since the dig state last changed. */
     private int digAge;
     private int lastDig;
@@ -372,7 +374,8 @@ public class TheOneEntity extends Monster {
             this.climbO = this.climb;
             double rise = this.getY() - this.yo;
             double run = Math.sqrt((this.getX() - this.xo) * (this.getX() - this.xo) + (this.getZ() - this.zo) * (this.getZ() - this.zo));
-            float slope = rise * rise + run * run > 1.0E-4D ? (float) Mth.clamp(Math.atan2(rise, run), -1.0D, 1.0D) : this.climb * 0.9F;
+            // Kept while it stops to dig, so it stays lying along the slope of its tunnel.
+            float slope = rise * rise + run * run > 1.0E-4D ? (float) Mth.clamp(Math.atan2(rise, run), -1.0D, 1.0D) : this.climb;
             this.climb += (slope - this.climb) * 0.25F;
             float target = this.isCrawling() || this.mustCrawl() ? 1.0F : 0.0F;
             // Unfolding to full height after coming through a door takes its time.
@@ -1016,7 +1019,13 @@ public class TheOneEntity extends Monster {
             speed *= 0.45D;
         } else if (dig && this.upright) {
             // Upright it doesn't hurry.
-            speed *= 0.7D;
+            speed *= 0.45D;
+        }
+        if (this.riseTicks > 0) {
+            // Unfolding to its full height, slowly, before it takes a step.
+            this.riseTicks--;
+            this.setDeltaMovement(Vec3.ZERO);
+            return true;
         }
         Vec3 step = delta.scale(Math.min(speed, length) / length);
         Vec3 next = this.position().add(step);
@@ -1040,7 +1049,16 @@ public class TheOneEntity extends Monster {
             }
         }
         this.setDeltaMovement(step);
-        this.setCrawling(!(dig && this.upright && this.hasRoomToStand(next)));
+        // Only once its hips are out of the hole: the whole of it has to fit where it stands up.
+        boolean crawl = !(dig && this.upright && this.hasRoomToStand(this.position()) && this.hasRoomToStand(next));
+        if (!crawl && this.isCrawling()) {
+            this.riseTicks = 34;
+            this.setDeltaMovement(Vec3.ZERO);
+            this.setCrawling(false);
+            this.playSoundAt(ModSounds.BREATH.get(), 0.9F);
+            return true;
+        }
+        this.setCrawling(crawl);
         float yaw = yawTowards(this.position(), target);
         this.setYRot(yaw);
         this.setYBodyRot(yaw);
