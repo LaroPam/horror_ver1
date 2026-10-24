@@ -11,6 +11,9 @@ import com.laropam.cornerofeye.network.HorrorPacket;
 import com.laropam.cornerofeye.registry.ModEntities;
 import com.laropam.cornerofeye.registry.ModItems;
 import com.laropam.cornerofeye.registry.ModSounds;
+import com.laropam.cornerofeye.entity.scene.SceneRunner;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -54,6 +57,14 @@ public class TheOneEntity extends Monster {
             SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> DATA_CRAWLING =
             SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> DATA_SCENE =
+            SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.INT);
+    /** Which step of its scene it is on; each scene numbers its own steps. */
+    private static final EntityDataAccessor<Integer> DATA_ANIM =
+            SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.INT);
+    /** Leans to its own left (true) or right while peeking. */
+    private static final EntityDataAccessor<Boolean> DATA_SIDE =
+            SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.BOOLEAN);
 
     /** Looking this directly at it (about 20 degrees) for a moment makes it move somewhere else. */
     private static final double DIRECT_GAZE = 0.93D;
@@ -69,9 +80,22 @@ public class TheOneEntity extends Monster {
     private int holdTicks;
     @Nullable
     private Vec3 waypoint;
+    @Nullable
+    private SceneRunner sceneRunner;
+    private int sceneAge;
+    @Nullable
+    private Challenge challenge;
+    private int challengeTicks;
+    private int challengeGrace;
+    @Nullable
+    private Vec3 victimLastPos;
     /** Client-side: smoothed 0 = standing, 1 = on all fours. */
     private float crawl;
     private float crawlO;
+    /** Client-side: ticks since the scene step last changed. */
+    private int animTicks;
+    private int lastAnimSeen = -1;
+    private Scene lastSceneSeen = Scene.NONE;
 
     public TheOneEntity(EntityType<? extends TheOneEntity> type, Level level) {
         super(type, level);
@@ -105,7 +129,28 @@ public class TheOneEntity extends Monster {
         return one;
     }
 
-    private static float yawTowards(Vec3 from, Vec3 to) {
+    /** Puts it into the world to play out a scripted moment. */
+    @Nullable
+    public static TheOneEntity spawnForScene(ServerLevel level, ServerPlayer victim, Vec3 pos, int stage, Scene scene, SceneRunner runner) {
+        TheOneEntity one = ModEntities.THE_ONE.get().create(level);
+        if (one == null) {
+            return null;
+        }
+        float yaw = yawTowards(pos, victim.position());
+        one.moveTo(pos.x, pos.y, pos.z, yaw, 0.0F);
+        one.setYHeadRot(yaw);
+        one.setYBodyRot(yaw);
+        one.victimId = victim.getUUID();
+        one.stage = stage;
+        one.entityData.set(DATA_SCENE, scene.ordinal());
+        one.sceneRunner = runner;
+        one.startPhase(Phase.SCENE);
+        level.addFreshEntity(one);
+        runner.start(one, level, victim);
+        return one;
+    }
+
+    public static float yawTowards(Vec3 from, Vec3 to) {
         return (float) (Mth.atan2(to.z - from.z, to.x - from.x) * Mth.RAD_TO_DEG) - 90.0F;
     }
 
@@ -114,6 +159,9 @@ public class TheOneEntity extends Monster {
         super.defineSynchedData();
         this.entityData.define(DATA_PHASE, Phase.WATCH.ordinal());
         this.entityData.define(DATA_CRAWLING, false);
+        this.entityData.define(DATA_SCENE, Scene.NONE.ordinal());
+        this.entityData.define(DATA_ANIM, 0);
+        this.entityData.define(DATA_SIDE, false);
     }
 
     public Phase getPhase() {
@@ -124,8 +172,33 @@ public class TheOneEntity extends Monster {
         return this.entityData.get(DATA_CRAWLING);
     }
 
-    private void setCrawling(boolean crawling) {
+    public void setCrawling(boolean crawling) {
         this.entityData.set(DATA_CRAWLING, crawling);
+    }
+
+    public Scene getScene() {
+        return this.getPhase() == Phase.SCENE ? Scene.byId(this.entityData.get(DATA_SCENE)) : Scene.NONE;
+    }
+
+    public int getAnim() {
+        return this.entityData.get(DATA_ANIM);
+    }
+
+    public void setAnim(int step) {
+        this.entityData.set(DATA_ANIM, step);
+    }
+
+    public boolean isLeaningLeft() {
+        return this.entityData.get(DATA_SIDE);
+    }
+
+    public void setLeaningLeft(boolean left) {
+        this.entityData.set(DATA_SIDE, left);
+    }
+
+    /** Client-side: ticks (with partial tick) since the current scene step began. */
+    public float getAnimTime(float partialTick) {
+        return this.animTicks + partialTick;
     }
 
     public int getStage() {
@@ -150,6 +223,8 @@ public class TheOneEntity extends Monster {
             case STALK -> this.stage >= HauntData.HUNTING ? 600 + this.random.nextInt(600) : 1200 + this.random.nextInt(1200);
             case HUNT -> 3600;
             case REVEALED -> 60;
+            // Scenes end themselves; this is only a safety net.
+            case SCENE -> 1800;
         };
         this.setCrawling(phase == Phase.HUNT);
     }
@@ -166,7 +241,20 @@ public class TheOneEntity extends Monster {
         if (this.level().isClientSide) {
             this.crawlO = this.crawl;
             float target = this.isCrawling() ? 1.0F : 0.0F;
-            this.crawl += Mth.clamp(target - this.crawl, -0.15F, 0.15F);
+            // Unfolding to full height after coming through a door takes its time.
+            float rate = this.getScene() == Scene.DOOR && target < this.crawl ? 0.035F : 0.15F;
+            if (this.tickCount <= 1) {
+                this.crawl = target;
+            }
+            this.crawl += Mth.clamp(target - this.crawl, -rate, rate);
+            Scene scene = this.getScene();
+            if (this.getAnim() != this.lastAnimSeen || scene != this.lastSceneSeen) {
+                this.lastAnimSeen = this.getAnim();
+                this.lastSceneSeen = scene;
+                this.animTicks = 0;
+            } else {
+                this.animTicks++;
+            }
         }
     }
 
@@ -186,7 +274,7 @@ public class TheOneEntity extends Monster {
             return;
         }
         Phase phase = this.getPhase();
-        if (phase != Phase.REVEALED && this.isDaylightAround(victim)) {
+        if (phase != Phase.REVEALED && phase != Phase.SCENE && this.isDaylightAround(victim)) {
             this.leave(HauntManager.Exit.DAYLIGHT);
             return;
         }
@@ -205,6 +293,7 @@ public class TheOneEntity extends Monster {
             case STALK -> this.tickStalk(level, victim);
             case HUNT -> this.tickHunt(level, victim);
             case REVEALED -> this.tickRevealed(level);
+            case SCENE -> this.tickScene(level, victim);
         }
     }
 
@@ -248,7 +337,7 @@ public class TheOneEntity extends Monster {
                     this.leave(HauntManager.Exit.TIMEOUT);
                 }
             }
-            case HUNT -> this.leave(HauntManager.Exit.TIMEOUT);
+            case HUNT, SCENE -> this.leave(HauntManager.Exit.TIMEOUT);
             case REVEALED -> this.leave(HauntManager.Exit.WOUNDED);
         }
     }
@@ -344,7 +433,122 @@ public class TheOneEntity extends Monster {
         this.ambientSounds(victim, 18.0D);
     }
 
-    private void touch(ServerPlayer victim) {
+    // ----------------------------------------------------------------- scenes
+
+    private void tickScene(ServerLevel level, ServerPlayer victim) {
+        if (this.sceneRunner == null) {
+            this.leave(HauntManager.Exit.LOST);
+            return;
+        }
+        this.sceneRunner.tick(this, level, victim, this.sceneAge++);
+        if (this.isAlive() && this.challenge != null) {
+            this.tickChallenge(level, victim);
+        }
+    }
+
+    /** Puts a countdown on the victim's screen. Failing it means being touched. */
+    public void startChallenge(ServerPlayer victim, Challenge type, int ticks) {
+        this.challenge = type;
+        this.challengeTicks = ticks;
+        this.challengeGrace = 25;
+        this.victimLastPos = victim.position();
+        HorrorNetwork.send(victim, HorrorPacket.Type.CHALLENGE, new BlockPos(ticks, 0, 0), type.ordinal());
+    }
+
+    public boolean hasChallenge() {
+        return this.challenge != null;
+    }
+
+    /** 0 at the start of the countdown, 1 when it runs out. */
+    public float getChallengeProgress(int length) {
+        return this.challenge == null ? 0.0F : Mth.clamp(1.0F - (float) this.challengeTicks / length, 0.0F, 1.0F);
+    }
+
+    private void tickChallenge(ServerLevel level, ServerPlayer victim) {
+        Challenge type = this.challenge;
+        if (type == null) {
+            return;
+        }
+        this.challengeTicks--;
+        Boolean survived = null;
+        switch (type) {
+            case LIGHT_RUN, LIGHT_PLACE -> {
+                if (isLit(level, victim, HorrorConfig.SAFE_LIGHT_LEVEL.get())) {
+                    survived = true;
+                } else if (this.challengeTicks <= 0) {
+                    survived = false;
+                }
+            }
+            case DONT_LOOK -> {
+                if (this.isSeenBy(level, victim, Sight.ON_SCREEN)) {
+                    survived = false;
+                } else if (this.challengeTicks <= 0) {
+                    survived = true;
+                }
+            }
+            case STILL -> {
+                Vec3 now = victim.position();
+                double moved = this.victimLastPos == null ? 0.0D : now.subtract(this.victimLastPos).horizontalDistance();
+                this.victimLastPos = now;
+                if (this.challengeGrace > 0) {
+                    this.challengeGrace--;
+                } else if (!victim.isShiftKeyDown() || moved > 0.02D) {
+                    survived = false;
+                }
+                if (survived == null && this.challengeTicks <= 0) {
+                    survived = true;
+                }
+            }
+        }
+        if (survived != null) {
+            this.endChallenge(victim, survived);
+        }
+    }
+
+    private void endChallenge(ServerPlayer victim, boolean survived) {
+        this.challenge = null;
+        HorrorNetwork.send(victim, HorrorPacket.Type.CHALLENGE_END, survived ? 1 : 0);
+        if (!survived) {
+            this.touch(victim);
+            return;
+        }
+        // It lets you go this time, and leaves something behind.
+        if (this.level() instanceof ServerLevel level && (this.stage < HauntData.HUNTING || this.random.nextBoolean())) {
+            ItemEntity item = new ItemEntity(level, this.getX(), this.getY() + 0.2D, this.getZ(), new ItemStack(ModItems.SHADOW_SCRAP.get()));
+            item.setDeltaMovement(Vec3.ZERO);
+            item.setExtendedLifetime();
+            level.addFreshEntity(item);
+        }
+        this.playSoundAt(ModSounds.VANISH.get(), 1.0F);
+        victim.displayClientMessage(Component.translatable("cornerofeye.message.survived").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC), true);
+        HauntManager.award(victim, "survived");
+        this.leave(HauntManager.Exit.SURVIVED);
+    }
+
+    /** True if the player has it on screen with nothing in between. */
+    public boolean isSeenBy(ServerLevel level, Player player, double minDot) {
+        Vec3 head = new Vec3(this.getX(), this.getY() + this.getBbHeight() * 0.85D, this.getZ());
+        Vec3 middle = new Vec3(this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ());
+        return Sight.canSee(level, player, head, minDot) || Sight.canSee(level, player, middle, minDot);
+    }
+
+    /** Moves straight to a point this tick, through anything, facing where it goes. */
+    public void stepTo(Vec3 target, boolean faceIt) {
+        Vec3 from = this.position();
+        this.setPos(target.x, target.y, target.z);
+        this.setDeltaMovement(Vec3.ZERO);
+        if (faceIt && from.distanceToSqr(target) > 1.0E-4D) {
+            this.face(target.add(target.subtract(from)));
+        }
+    }
+
+    public void face(Vec3 target) {
+        float yaw = yawTowards(this.position(), target);
+        this.setYRot(yaw);
+        this.setYBodyRot(yaw);
+    }
+
+    public void touch(ServerPlayer victim) {
         HorrorNetwork.send(victim, HorrorPacket.Type.JUMPSCARE, 18);
         this.level().playSound(victim, this.getX(), this.getY(), this.getZ(), ModSounds.SCREAM.get(), SoundSource.HOSTILE, 1.5F, 1.0F);
         float damage = (float) (victim.getMaxHealth() * HorrorConfig.TOUCH_DAMAGE_FRACTION.get());
@@ -368,6 +572,12 @@ public class TheOneEntity extends Monster {
     public void reveal(ServerPlayer catcher) {
         if (!(this.level() instanceof ServerLevel level) || this.getPhase() == Phase.REVEALED) {
             return;
+        }
+        Player victim = this.victimId == null ? null : level.getPlayerByUUID(this.victimId);
+        if (this.challenge != null && victim instanceof ServerPlayer serverVictim) {
+            // Caught in the middle of its moment: that counts as surviving it.
+            this.challenge = null;
+            HorrorNetwork.send(serverVictim, HorrorPacket.Type.CHALLENGE_END, 1);
         }
         this.startPhase(Phase.REVEALED);
         float yaw = yawTowards(this.position(), catcher.position());
@@ -458,14 +668,14 @@ public class TheOneEntity extends Monster {
         this.soundCooldown = 70 + this.random.nextInt(80);
     }
 
-    private void playSoundAt(SoundEvent sound, float volume) {
+    public void playSoundAt(SoundEvent sound, float volume) {
         this.level().playSound(null, this.getX(), this.getY() + 1.5D, this.getZ(), sound, SoundSource.HOSTILE, volume,
                 0.85F + this.random.nextFloat() * 0.2F);
     }
 
     // --------------------------------------------------------------- helpers
 
-    private static boolean isLit(ServerLevel level, Player player, int safe) {
+    public static boolean isLit(ServerLevel level, Player player, int safe) {
         return level.getBrightness(LightLayer.BLOCK, player.blockPosition()) >= safe
                 || level.getBrightness(LightLayer.BLOCK, BlockPos.containing(player.getEyePosition())) >= safe;
     }
@@ -498,7 +708,11 @@ public class TheOneEntity extends Monster {
         return Sight.canSee(level, player, head, 0.25D) || Sight.canSee(level, player, middle, 0.25D);
     }
 
-    private void leave(HauntManager.Exit exit) {
+    public void leave(HauntManager.Exit exit) {
+        if (this.challenge != null && this.victimId != null && this.level().getPlayerByUUID(this.victimId) instanceof ServerPlayer victim) {
+            HorrorNetwork.send(victim, HorrorPacket.Type.CHALLENGE_END, 2);
+        }
+        this.challenge = null;
         if (this.level() instanceof ServerLevel level) {
             HauntManager.onGone(level, this, exit);
         }

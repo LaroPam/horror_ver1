@@ -2,12 +2,17 @@ package com.laropam.cornerofeye.client;
 
 import com.laropam.cornerofeye.ClientConfig;
 import com.laropam.cornerofeye.CornerOfTheEye;
+import com.laropam.cornerofeye.entity.Challenge;
 import com.laropam.cornerofeye.entity.Phase;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.network.HorrorPacket;
 import com.laropam.cornerofeye.registry.ModSounds;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.Font;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -36,6 +41,8 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+
+import java.util.Locale;
 
 /**
  * Everything that only happens on your side of the screen: footsteps behind you, knocking, mining in the walls,
@@ -80,6 +87,10 @@ public final class ClientHorror {
     private static long lastGlimpseTime;
     private static DreadLoopSound dreadLoop;
 
+    private static int challengeType = -1;
+    private static int challengeTicks;
+    private static int challengeLength = 1;
+
     // ------------------------------------------------------------- packets
 
     public static void handle(HorrorPacket msg) {
@@ -112,6 +123,14 @@ public final class ClientHorror {
             }
             case FLASH -> flash = Math.max(flash, msg.data() / 100.0F);
             case DREAD -> dreadSpike = Math.min(1.0F, dreadSpike + msg.data() / 100.0F);
+            case CHALLENGE -> {
+                challengeType = msg.data();
+                challengeLength = Math.max(1, msg.pos().getX());
+                challengeTicks = challengeLength;
+                dreadSpike = Math.min(1.0F, dreadSpike + 0.5F);
+                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.GLIMPSE.get(), 0.8F, 0.8F));
+            }
+            case CHALLENGE_END -> challengeType = -1;
         }
     }
 
@@ -133,10 +152,28 @@ public final class ClientHorror {
         if (jumpscareTicks > 0) {
             jumpscareTicks--;
         }
+        tickChallenge(minecraft);
         tickFootsteps(level, player);
         tickMining(level);
         tickKnock(level);
         tickDread(minecraft, level, player);
+    }
+
+    /** The clock ticks every second, then twice a second near the end. Your heart keeps up. */
+    private static void tickChallenge(Minecraft minecraft) {
+        if (challengeType < 0) {
+            return;
+        }
+        challengeTicks--;
+        int interval = challengeTicks < 60 ? 10 : 20;
+        if (challengeTicks >= 0 && challengeTicks % interval == 0) {
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.TIMER_TICK.get(), challengeTicks < 60 ? 1.25F : 1.0F, 0.9F));
+        }
+        dreadSpike = Math.max(dreadSpike, 0.45F);
+        if (challengeTicks < -60) {
+            // The server never answered; don't leave a dead timer on screen.
+            challengeType = -1;
+        }
     }
 
     /** Steps from behind that get closer, and stop the moment you turn around. */
@@ -317,6 +354,7 @@ public final class ClientHorror {
         miningBlocksLeft = 0;
         knockTicks = -1;
         jumpscareTicks = 0;
+        challengeType = -1;
         flash = flashO = 0.0F;
         dread = dreadO = dreadSpike = 0.0F;
         beat = beatO = 0.0F;
@@ -406,6 +444,9 @@ public final class ClientHorror {
     }
 
     static void renderScare(ForgeGui gui, GuiGraphics graphics, float partialTick, int width, int height) {
+        if (challengeType >= 0) {
+            renderChallenge(graphics, partialTick, width, height);
+        }
         float flashAmount = Mth.lerp(partialTick, flashO, flash);
         if (flashAmount > 0.01F && ClientConfig.SCREEN_EFFECTS.get()) {
             int alpha = (int) (Mth.clamp(flashAmount, 0.0F, 1.0F) * 235.0F);
@@ -426,6 +467,41 @@ public final class ClientHorror {
         if (progress < 0.2F) {
             graphics.fill(0, 0, width, height, 0x66FF0000);
         }
+    }
+
+    /** The countdown: big seconds, what to do, and a bar running out. */
+    private static void renderChallenge(GuiGraphics graphics, float partialTick, int width, int height) {
+        Font font = Minecraft.getInstance().font;
+        Challenge type = Challenge.byId(challengeType);
+        float seconds = Math.max(0.0F, (challengeTicks - partialTick) / 20.0F);
+        boolean urgent = seconds < 3.0F;
+        boolean blink = urgent && ((int) (seconds * 4.0F)) % 2 == 0;
+        float top = height * 0.16F;
+        PoseStack pose = graphics.pose();
+        // A dark band behind the text so it reads over anything, even over it.
+        graphics.fill(width / 2 - 150, (int) top - 26, width / 2 + 150, (int) top + 70, 0x70000000);
+
+        pose.pushPose();
+        pose.translate(width / 2.0F, top, 0.0F);
+        float scale = 4.0F + (urgent ? 0.6F * (seconds % 0.5F) : 0.0F);
+        pose.scale(scale, scale, 1.0F);
+        graphics.drawCenteredString(font, String.format(Locale.ROOT, "%.1f", seconds), 0, -4, blink ? 0xFF2A2A : 0xEDEDED);
+        pose.popPose();
+
+        pose.pushPose();
+        pose.translate(width / 2.0F, top + 24.0F, 0.0F);
+        pose.scale(2.0F, 2.0F, 1.0F);
+        graphics.drawCenteredString(font, Component.translatable(type.key()).withStyle(ChatFormatting.BOLD), 0, 0, 0xFFD6D6);
+        pose.popPose();
+
+        graphics.drawCenteredString(font, Component.translatable(type.key() + ".hint"), width / 2, (int) top + 48, 0xA8A8A8);
+
+        int barWidth = 160;
+        int x0 = width / 2 - barWidth / 2;
+        int y0 = (int) top + 62;
+        float left = Mth.clamp((challengeTicks - partialTick) / challengeLength, 0.0F, 1.0F);
+        graphics.fill(x0 - 1, y0 - 1, x0 + barWidth + 1, y0 + 4, 0x90000000);
+        graphics.fill(x0, y0, x0 + (int) (barWidth * left), y0 + 3, urgent ? 0xFFD42020 : 0xFFE6E6E6);
     }
 
     private ClientHorror() {

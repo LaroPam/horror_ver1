@@ -27,7 +27,7 @@ public class TheOneRenderer extends MobRenderer<TheOneEntity, TheOneModel> {
         if (visibility < 0.01F) {
             return;
         }
-        if (visibility > 0.5F) {
+        if (visibility > 0.5F && entity.getPhase() != Phase.SCENE) {
             ClientHorror.onGlimpse(entity);
         }
         this.getModel().setAlpha(visibility);

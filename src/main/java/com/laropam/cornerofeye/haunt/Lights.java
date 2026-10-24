@@ -34,16 +34,22 @@ public final class Lights {
         return litFire && state.hasProperty(BlockStateProperties.LIT) && state.getValue(BlockStateProperties.LIT);
     }
 
-    /** Snuffable lights around {@code center} that nobody is looking at, closest first. */
-    public static List<BlockPos> findHidden(ServerLevel level, BlockPos center, int radius, int height) {
+    /** Every snuffable light around {@code center}, closest first. */
+    public static List<BlockPos> findAll(ServerLevel level, BlockPos center, int radius, int height) {
         List<BlockPos> found = new ArrayList<>();
         for (BlockPos pos : BlockPos.betweenClosed(center.offset(-radius, -height, -radius), center.offset(radius, height, radius))) {
             if (level.hasChunkAt(pos) && isSnuffable(level.getBlockState(pos))) {
                 found.add(pos.immutable());
             }
         }
-        found.removeIf(pos -> !Sight.blockHiddenFromEveryone(level, pos));
         found.sort(Comparator.comparingDouble(pos -> pos.distSqr(center)));
+        return found;
+    }
+
+    /** Snuffable lights around {@code center} that nobody is looking at, closest first. */
+    public static List<BlockPos> findHidden(ServerLevel level, BlockPos center, int radius, int height) {
+        List<BlockPos> found = findAll(level, center, radius, height);
+        found.removeIf(pos -> !Sight.blockHiddenFromEveryone(level, pos));
         return found;
     }
 

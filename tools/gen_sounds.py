@@ -293,6 +293,15 @@ def dread_loop():
     return (low * 0.45 * throb + air + whine)
 
 
+def timer_tick():
+    """A dry clock tick with a low knock under it."""
+    length = 0.3
+    tt = t(length)
+    click = bandpass(noise(length), 2500, 7000) * np.exp(-tt * 260)
+    knock = np.sin(2 * np.pi * 880 * tt) * np.exp(-tt * 60) * 0.6 + np.sin(2 * np.pi * 70 * tt) * np.exp(-tt * 30) * 0.5
+    return np.tanh(2.0 * (click + knock))
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     write("the_one_breath1", breath(0), -3)
@@ -313,4 +322,5 @@ if __name__ == "__main__":
     write("player_breath", player_breath(), -2)
     write("tinnitus", tinnitus(), -8)
     write("dread_loop", dread_loop(), -3)
+    write("timer_tick", timer_tick(), -2)
     print("sounds written to", os.path.normpath(OUT))

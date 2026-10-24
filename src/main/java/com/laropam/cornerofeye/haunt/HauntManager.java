@@ -44,7 +44,7 @@ import java.util.UUID;
 public final class HauntManager {
     /** Why it left. Decides how long until it comes back. */
     public enum Exit {
-        LOST, DAYLIGHT, TIMEOUT, APPROACHED, SCARED, TOUCHED, WOUNDED
+        LOST, DAYLIGHT, TIMEOUT, APPROACHED, SCARED, SURVIVED, TOUCHED, WOUNDED
     }
 
     private static final String JOURNAL_TAG = CornerOfTheEye.MODID + ".journal";
@@ -52,6 +52,7 @@ public final class HauntManager {
     private static final Map<UUID, PlayerState> STATES = new HashMap<>();
     private static final List<Task> TASKS = new ArrayList<>();
     private static int lastStage = -1;
+    private static long nextMomentTick = 2400;
 
     private static final class PlayerState {
         int eventCooldown = 1200 + (int) (Math.random() * 1200);
@@ -203,9 +204,16 @@ public final class HauntManager {
             return;
         }
         ServerPlayer victim = pickVictim(overworld);
-        if (victim != null) {
-            appear(victim, stage, Phase.WATCH);
+        if (victim == null) {
+            return;
         }
+        // Sometimes, instead of just watching, it stages one of its moments.
+        float momentChance = stage >= HauntData.HUNTING ? 0.5F : stage == HauntData.APPROACHING ? 0.4F : 0.3F;
+        if (serverTicks >= nextMomentTick && random.nextFloat() < momentChance && Moments.startRandom(victim, stage) != null) {
+            nextMomentTick = serverTicks + 4800 + random.nextInt(3600);
+            return;
+        }
+        appear(victim, stage, Phase.WATCH);
     }
 
     /** It prefers whoever is alone in the dark. */
@@ -380,6 +388,7 @@ public final class HauntManager {
         STATES.clear();
         TASKS.clear();
         lastStage = -1;
+        nextMomentTick = 2400;
     }
 
     /** Runs one event right now, for commands. */

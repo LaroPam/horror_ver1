@@ -120,5 +120,11 @@
     "sounds": [
       "cornerofeye:dread_loop"
     ]
+  },
+  "timer_tick": {
+    "subtitle": "subtitles.cornerofeye.timer_tick",
+    "sounds": [
+      "cornerofeye:timer_tick"
+    ]
   }
 }

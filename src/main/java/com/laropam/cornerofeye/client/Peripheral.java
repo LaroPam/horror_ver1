@@ -26,7 +26,8 @@ public final class Peripheral {
     }
 
     public static float visibility(TheOneEntity entity, float partialTick) {
-        if (entity.getPhase() == Phase.REVEALED) {
+        if (entity.getPhase() == Phase.REVEALED || entity.getPhase() == Phase.SCENE) {
+            // Caught, or one of its moments: it wants to be seen.
             return 1.0F;
         }
         Minecraft minecraft = Minecraft.getInstance();

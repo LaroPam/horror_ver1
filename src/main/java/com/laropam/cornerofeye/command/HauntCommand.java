@@ -2,10 +2,12 @@ package com.laropam.cornerofeye.command;
 
 import com.laropam.cornerofeye.CornerOfTheEye;
 import com.laropam.cornerofeye.entity.Phase;
+import com.laropam.cornerofeye.entity.Scene;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntEvent;
 import com.laropam.cornerofeye.haunt.HauntManager;
+import com.laropam.cornerofeye.haunt.Moments;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -46,6 +48,13 @@ public final class HauntCommand {
                                 .executes(ctx -> appear(ctx, ctx.getSource().getPlayerOrException()))
                                 .then(Commands.argument("target", EntityArgument.player())
                                         .executes(ctx -> appear(ctx, EntityArgument.getPlayer(ctx, "target"))))))
+                .then(Commands.literal("moment")
+                        .then(Commands.argument("moment", StringArgumentType.word())
+                                .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(
+                                        Arrays.stream(Scene.values()).filter(scene -> scene != Scene.NONE).map(Scene::id), builder))
+                                .executes(ctx -> moment(ctx, ctx.getSource().getPlayerOrException()))
+                                .then(Commands.argument("target", EntityArgument.player())
+                                        .executes(ctx -> moment(ctx, EntityArgument.getPlayer(ctx, "target"))))))
                 .then(Commands.literal("event")
                         .then(Commands.argument("event", StringArgumentType.word())
                                 .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(
@@ -100,6 +109,31 @@ public final class HauntCommand {
             return 0;
         }
         ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.appear", target.getDisplayName()), true);
+        return 1;
+    }
+
+    private static int moment(CommandContext<CommandSourceStack> ctx, ServerPlayer target) {
+        String name = StringArgumentType.getString(ctx, "moment");
+        Scene scene;
+        try {
+            scene = Scene.valueOf(name.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            scene = Scene.NONE;
+        }
+        if (scene == Scene.NONE) {
+            ctx.getSource().sendFailure(Component.translatable("commands.cornerofeye.unknown", name));
+            return 0;
+        }
+        TheOneEntity existing = HauntManager.findTheOne(target.serverLevel());
+        if (existing != null) {
+            existing.discard();
+        }
+        int stage = Math.max(scene.minStage, data(ctx).getStage());
+        if (Moments.start(target, stage, scene) == null) {
+            ctx.getSource().sendFailure(Component.translatable("commands.cornerofeye.moment.failed", name));
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.moment", name, target.getDisplayName()), true);
         return 1;
     }
 

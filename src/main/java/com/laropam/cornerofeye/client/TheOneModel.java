@@ -3,6 +3,7 @@ package com.laropam.cornerofeye.client;
 import com.laropam.cornerofeye.CornerOfTheEye;
 import com.laropam.cornerofeye.entity.Phase;
 import com.laropam.cornerofeye.entity.TheOneEntity;
+import com.laropam.cornerofeye.entity.scene.PeekScene;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.model.HierarchicalModel;
@@ -157,6 +158,87 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
         this.leftThigh.zRot = -this.rightThigh.zRot;
         this.rightShin.xRot = Mth.lerp(crawl, 0.1F, -2.05F + swing * 0.3F);
         this.leftShin.xRot = Mth.lerp(crawl, 0.1F, -2.05F - swing * 0.3F);
+
+        float sceneTime = entity.getAnimTime(ageInTicks - entity.tickCount);
+        switch (entity.getScene()) {
+            case PEEK -> this.posePeek(entity, sceneTime, headTilt, pitch);
+            case BEHIND -> this.poseBehind(ageInTicks, pitch);
+            case DOOR -> {
+                if (entity.getAnim() == 0) {
+                    // Squeezing through: the head jerks side to side.
+                    this.head.zRot += Mth.sin(ageInTicks * 1.7F) * 0.3F;
+                } else if (entity.getAnim() == 2) {
+                    this.reach(0.75F, ageInTicks);
+                }
+            }
+            case LIGHTS_OUT -> {
+                if (entity.getAnim() == 1) {
+                    this.reach(0.5F, ageInTicks);
+                }
+            }
+            case STILL -> {
+                // Sniffing for you.
+                this.head.xRot += Mth.sin(ageInTicks * 1.3F) * 0.18F;
+                this.head.yRot += Mth.sin(ageInTicks * 0.45F) * 0.5F;
+                this.jaw.xRot = 0.3F + Mth.sin(ageInTicks * 2.1F) * 0.15F;
+            }
+            default -> {
+            }
+        }
+    }
+
+    /**
+     * Crouched behind a trunk, the whole body bent sideways so only the head and one hand come out past the
+     * bark, head tipped over until it is almost lying on its side.
+     */
+    private void posePeek(TheOneEntity entity, float time, float headTilt, float pitch) {
+        float lean = switch (entity.getAnim()) {
+            case 0 -> smoothstep(time / PeekScene.LEAN_OUT);
+            case 1 -> 1.0F;
+            default -> 1.0F - Mth.clamp(time / PeekScene.SNAP_BACK, 0.0F, 1.0F);
+        };
+        float side = entity.isLeaningLeft() ? 1.0F : -1.0F;
+        this.hips.y = Mth.lerp(lean, -2.0F, 4.0F);
+        this.rightThigh.xRot = this.leftThigh.xRot = Mth.lerp(lean, -0.05F, -0.75F);
+        this.rightShin.xRot = this.leftShin.xRot = Mth.lerp(lean, 0.1F, 1.5F);
+        this.body.xRot = Mth.lerp(lean, 0.28F, 0.1F);
+        this.body.zRot = side * 0.85F * lean;
+        this.head.xRot = -this.body.xRot + pitch;
+        this.head.zRot = Mth.lerp(lean, headTilt, side * 1.25F);
+        this.jaw.xRot = Mth.lerp(lean, 0.12F, 0.3F);
+        ModelPart lead = side > 0.0F ? this.leftArm : this.rightArm;
+        ModelPart leadForearm = side > 0.0F ? this.leftForearm : this.rightForearm;
+        ModelPart other = side > 0.0F ? this.rightArm : this.leftArm;
+        // Fingers hooked around the edge of the bark at head height.
+        lead.xRot = Mth.lerp(lean, lead.xRot, -2.5F);
+        lead.zRot = Mth.lerp(lean, lead.zRot, -side * 0.35F);
+        leadForearm.xRot = Mth.lerp(lean, leadForearm.xRot, 1.25F);
+        other.zRot = Mth.lerp(lean, other.zRot, -this.body.zRot);
+    }
+
+    /** Bent right over you from behind, jaw hanging, hands either side of your head. */
+    private void poseBehind(float ageInTicks, float pitch) {
+        this.body.xRot = 0.65F + Mth.sin(ageInTicks * 0.05F) * 0.03F;
+        this.head.xRot = -0.55F + pitch;
+        this.head.zRot = 0.35F;
+        this.jaw.xRot = 0.55F + Mth.sin(ageInTicks * 0.3F) * 0.1F;
+        this.rightArm.xRot = this.leftArm.xRot = -1.25F;
+        this.rightArm.zRot = 0.4F;
+        this.leftArm.zRot = -0.4F;
+        this.rightForearm.xRot = this.leftForearm.xRot = -0.5F;
+    }
+
+    /** Arms coming up towards you, jaw opening. */
+    private void reach(float amount, float ageInTicks) {
+        this.rightArm.xRot = Mth.lerp(amount, this.rightArm.xRot, -1.4F + Mth.sin(ageInTicks * 0.2F) * 0.05F);
+        this.leftArm.xRot = Mth.lerp(amount, this.leftArm.xRot, -1.4F + Mth.sin(ageInTicks * 0.2F + 1.5F) * 0.05F);
+        this.rightForearm.xRot = this.leftForearm.xRot = Mth.lerp(amount, 0.0F, -0.3F);
+        this.jaw.xRot = Mth.lerp(amount, this.jaw.xRot, 0.7F);
+    }
+
+    private static float smoothstep(float t) {
+        t = Mth.clamp(t, 0.0F, 1.0F);
+        return t * t * (3.0F - 2.0F * t);
     }
 
     /** Caught in the light: thrown upright, arms flung out, jaw hanging open, shaking. */
