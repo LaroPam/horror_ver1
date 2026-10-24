@@ -79,7 +79,7 @@ public final class Nightmares {
     private static final int ABOVE = 8;
     private static final int LENGTH = 1800;
     private static final int STALK_AT = 300;
-    private static final int HUNT_AT = 1100;
+    private static final int HUNT_AT = 1300;
     private static final String TAG = "cornerofeye.dream";
 
     private static final Map<UUID, Dream> DREAMS = new HashMap<>();
