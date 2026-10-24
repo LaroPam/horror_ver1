@@ -73,7 +73,7 @@ public class TheOneRenderer extends MobRenderer<TheOneEntity, TheOneModel> {
     @Override
     protected void scale(TheOneEntity entity, PoseStack poseStack, float partialTick) {
         // A little taller every day.
-        float size = 1.0F + 0.22F * entity.getMenace();
+        float size = entity.getVisualScale();
         poseStack.scale(size, size, size);
     }
 }

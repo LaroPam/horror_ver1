@@ -19,6 +19,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -48,6 +49,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -107,6 +109,9 @@ public class TheOneEntity extends Monster {
     /** Client-side: smoothed 0 = standing, 1 = on all fours. */
     private float crawl;
     private float crawlO;
+    /** Client-side: blocks of room above it, smoothed, so it stoops or goes down on all fours under a low ceiling. */
+    private float headroom = 6.0F;
+    private float headroomO = 6.0F;
     /** One of its empty copies on the last night: catching it wastes a scrap. Server side only. */
     private boolean decoy;
     /** Client-side: ticks since the scene step last changed. */
@@ -313,7 +318,10 @@ public class TheOneEntity extends Monster {
         this.setNoGravity(true);
         if (this.level().isClientSide) {
             this.crawlO = this.crawl;
-            float target = this.isCrawling() ? 1.0F : 0.0F;
+            this.headroomO = this.headroom;
+            float room = this.measureHeadroom();
+            this.headroom = this.tickCount <= 1 ? room : this.headroom + Mth.clamp(room - this.headroom, -0.3F, 0.3F);
+            float target = this.isCrawling() || this.mustCrawl() ? 1.0F : 0.0F;
             // Unfolding to full height after coming through a door takes its time.
             float rate = this.getScene() == Scene.DOOR && target < this.crawl ? 0.035F : 0.15F;
             if (this.tickCount <= 1) {
@@ -329,6 +337,56 @@ public class TheOneEntity extends Monster {
                 this.animTicks++;
             }
         }
+    }
+
+    /** How much taller it gets over the days; the renderer scales the model by this. */
+    public float getVisualScale() {
+        return 1.0F + 0.22F * this.getMenace();
+    }
+
+    /**
+     * Client side: room between its feet and whatever is above, up to 6 blocks. Inside a wall (passing
+     * through it) there is no telling, so it keeps what it had.
+     */
+    private float measureHeadroom() {
+        BlockPos feet = BlockPos.containing(this.getX(), this.getY() + 0.05D, this.getZ());
+        for (int i = 0; i <= 6; i++) {
+            BlockPos pos = feet.above(i);
+            VoxelShape shape = this.level().getBlockState(pos).getCollisionShape(this.level(), pos);
+            if (!shape.isEmpty()) {
+                return i == 0 ? this.headroom : (float) (pos.getY() + shape.min(Direction.Axis.Y) - this.getY());
+            }
+        }
+        return 6.0F;
+    }
+
+    /** Scenes with poses of their own don't fold to fit the room. */
+    private boolean fitsToRoom() {
+        Scene scene = this.getScene();
+        return scene != Scene.CEILING && scene != Scene.PEEK && scene != Scene.UNDERWATER && this.getPhase() != Phase.REVEALED;
+    }
+
+    /** Under about two blocks of ceiling (more as it grows) it can only move on all fours. */
+    public boolean mustCrawl() {
+        return this.fitsToRoom() && this.headroom < 2.3F * this.getVisualScale();
+    }
+
+    /** 0 standing tall, 1 hunched right down with bent knees: a three-block room is not enough for it. */
+    public float getStoop(float partialTick) {
+        if (!this.fitsToRoom()) {
+            return 0.0F;
+        }
+        float scale = this.getVisualScale();
+        return Mth.clamp((3.3F * scale - Mth.lerp(partialTick, this.headroomO, this.headroom)) / scale, 0.0F, 1.0F);
+    }
+
+    /** 0 crawling normally, 1 pressed flat with elbows and knees out to the sides, for crawlspaces. */
+    public float getFlatten(float partialTick) {
+        if (!this.fitsToRoom()) {
+            return 0.0F;
+        }
+        float scale = this.getVisualScale();
+        return Mth.clamp((1.8F * scale - Mth.lerp(partialTick, this.headroomO, this.headroom)) / (0.7F * scale), 0.0F, 1.0F);
     }
 
     public float getCrawlAmount(float partialTick) {

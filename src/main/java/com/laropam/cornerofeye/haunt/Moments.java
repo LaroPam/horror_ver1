@@ -106,10 +106,7 @@ public final class Moments {
             Vec3 in = axis.scale(Math.signum(side));
             Vec3 outside = doorway.subtract(in.scale(3.5D));
             Vec3 inside = doorway.add(in.scale(Math.min(1.8D, Math.abs(side) - 1.0D)));
-            BlockPos above = BlockPos.containing(inside).above(2);
-            boolean roomToStand = level.getBlockState(above).isAir() && level.getBlockState(above.above()).isAir();
-            return TheOneEntity.spawnForScene(level, victim, outside, stage, Scene.DOOR,
-                    new DoorScene(door, outside, doorway, inside, roomToStand));
+            return TheOneEntity.spawnForScene(level, victim, outside, stage, Scene.DOOR, new DoorScene(door, outside, doorway, inside));
         }
         return null;
     }

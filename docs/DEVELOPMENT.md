@@ -49,7 +49,7 @@ EXTRA_JVM="-Dcornerofeye.alwaysVisible=true" tools/dev/restart_client.sh   # д�
 python3 tools/dev/rcon.py "cornerofeye stage 3" "time set 18000"
 ```
 
-Скриншоты и логи лежат в `build/devshots/`. В `tools/dev/devlib.py` есть `rcon`, `shot`, `grid`, `key`, `mouse`, `click`, а для рендеров `studio`, `pose`, `merge`.
+Скриншоты, видео и логи лежат в `build/devshots/`. Для проверки анимаций: `record(name, seconds)` пишет видео, `frames(name, [секунды])` собирает лист кадров, `to_gif(name)` делает гифку. В `tools/dev/devlib.py` есть `rcon`, `shot`, `grid`, `key`, `mouse`, `click`, а для рендеров `studio`, `pose`, `merge`.
 
 Подводные камни:
 - Звука в контейнере нет, поэтому клиент запускается с `ALSOFT_DRIVERS=null` (OpenAL на пустом устройстве). Так звуки проигрываются «в никуда», и включённые субтитры показывают их на скриншотах.

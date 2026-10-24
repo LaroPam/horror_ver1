@@ -141,32 +141,36 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
         float bodyStand = 0.28F;
         float headTilt = 0.55F + 0.2F * menace + twitch + Mth.sin(ageInTicks * 0.03F) * 0.05F;
 
-        // Crawling: torso flat, knees above the hips, elbows high, head upside down.
-        float bodyCrawl = 1.4F;
+        // Crawling: torso nearly flat, knees above the hips, elbows high, head upside down and looking ahead.
+        float bodyCrawl = 1.25F;
         float swing = Mth.cos(limbSwing * 0.8F) * Mth.clamp(limbSwingAmount * 1.6F, 0.0F, 1.0F);
+        // Upright it takes long, slow strides: legs swing from the hip, the trailing knee bends, arms barely move.
+        float stride = Mth.cos(limbSwing * 0.45F) * Mth.clamp(limbSwingAmount * 1.4F, 0.0F, 1.0F);
 
         this.hips.y = Mth.lerp(crawl, -2.0F, 18.5F);
         this.body.xRot = Mth.lerp(crawl, bodyStand, bodyCrawl);
 
-        this.head.xRot = Mth.lerp(crawl, -bodyStand, -bodyCrawl) + pitch;
+        // Parts rotate X first, then Z: with the head flipped over (zRot = PI), the same xRot as the body's
+        // cancels it out, so the face ends up looking ahead, upside down, hanging below the neck.
+        this.head.xRot = Mth.lerp(crawl, -bodyStand, bodyCrawl) + pitch;
         this.head.yRot = yaw;
         this.head.zRot = Mth.lerp(crawl, headTilt, PI + twitch);
         this.jaw.xRot = Mth.lerp(crawl, 0.12F, 0.45F) + 0.3F * menace + twitch;
 
         float armStand = -bodyStand + 0.05F;
-        this.rightArm.xRot = Mth.lerp(crawl, armStand + Mth.sin(ageInTicks * 0.04F) * 0.03F, -3.7F + swing * 0.5F);
-        this.leftArm.xRot = Mth.lerp(crawl, armStand + Mth.sin(ageInTicks * 0.04F + 1.0F) * 0.03F, -3.7F - swing * 0.5F);
+        this.rightArm.xRot = Mth.lerp(crawl, armStand + Mth.sin(ageInTicks * 0.04F) * 0.03F - stride * 0.12F, -3.7F + swing * 0.5F);
+        this.leftArm.xRot = Mth.lerp(crawl, armStand + Mth.sin(ageInTicks * 0.04F + 1.0F) * 0.03F + stride * 0.12F, -3.7F - swing * 0.5F);
         this.rightArm.zRot = Mth.lerp(crawl, 0.14F, 0.45F);
         this.leftArm.zRot = -this.rightArm.zRot;
         this.rightForearm.xRot = Mth.lerp(crawl, -0.08F, 1.68F - swing * 0.3F);
         this.leftForearm.xRot = Mth.lerp(crawl, -0.08F, 1.68F + swing * 0.3F);
 
-        this.rightThigh.xRot = Mth.lerp(crawl, -0.05F, 2.2F - swing * 0.4F);
-        this.leftThigh.xRot = Mth.lerp(crawl, -0.05F, 2.2F + swing * 0.4F);
+        this.rightThigh.xRot = Mth.lerp(crawl, -0.05F + stride * 0.42F, 2.2F - swing * 0.4F);
+        this.leftThigh.xRot = Mth.lerp(crawl, -0.05F - stride * 0.42F, 2.2F + swing * 0.4F);
         this.rightThigh.zRot = Mth.lerp(crawl, 0.0F, 0.35F);
         this.leftThigh.zRot = -this.rightThigh.zRot;
-        this.rightShin.xRot = Mth.lerp(crawl, 0.1F, -2.05F + swing * 0.3F);
-        this.leftShin.xRot = Mth.lerp(crawl, 0.1F, -2.05F - swing * 0.3F);
+        this.rightShin.xRot = Mth.lerp(crawl, 0.1F + Math.max(0.0F, -stride) * 0.6F, -2.05F + swing * 0.3F);
+        this.leftShin.xRot = Mth.lerp(crawl, 0.1F + Math.max(0.0F, stride) * 0.6F, -2.05F - swing * 0.3F);
 
         float sceneTime = entity.getAnimTime(ageInTicks - entity.tickCount);
         switch (entity.getScene()) {
@@ -210,6 +214,39 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
             }
             default -> {
             }
+        }
+        this.fitToRoom(entity, ageInTicks - entity.tickCount, crawl);
+    }
+
+    /**
+     * A low ceiling: upright it hunches over, knees bent, back bowed, head pulled down and claws dragging
+     * on the floor; crawling under something lower still it presses itself flat, elbows and knees out
+     * to the sides like a spider.
+     */
+    private void fitToRoom(TheOneEntity entity, float partialTick, float crawl) {
+        float stoop = entity.getStoop(partialTick) * (1.0F - crawl);
+        if (stoop > 0.0F) {
+            this.body.xRot += stoop * 0.9F;
+            this.head.xRot -= stoop * 0.75F;
+            this.hips.y += stoop * 4.9F;
+            this.rightThigh.xRot -= stoop * 0.65F;
+            this.leftThigh.xRot -= stoop * 0.65F;
+            this.rightShin.xRot += stoop * 1.25F;
+            this.leftShin.xRot += stoop * 1.25F;
+            this.rightArm.xRot -= stoop * 0.55F;
+            this.leftArm.xRot -= stoop * 0.55F;
+            this.rightForearm.xRot -= stoop * 0.7F;
+            this.leftForearm.xRot -= stoop * 0.7F;
+        }
+        float flat = entity.getFlatten(partialTick) * crawl;
+        if (flat > 0.0F) {
+            this.hips.y += flat * 3.0F;
+            this.rightArm.zRot += flat * 0.9F;
+            this.leftArm.zRot -= flat * 0.9F;
+            this.rightArm.xRot += flat * 0.6F;
+            this.leftArm.xRot += flat * 0.6F;
+            this.rightThigh.zRot += flat * 0.7F;
+            this.leftThigh.zRot -= flat * 0.7F;
         }
     }
 
