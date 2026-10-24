@@ -60,6 +60,12 @@ public final class HorrorConfig {
     public static final ForgeConfigSpec.IntValue WOUNDS_TO_BANISH = BUILDER
             .comment("How many times it has to be caught by the Lantern of Revelation before it leaves for good.")
             .defineInRange("woundsToBanish", 3, 1, 100);
+    public static final ForgeConfigSpec.BooleanValue ECHOES = BUILDER
+            .comment("After it is banished, rare harmless echoes at night: a footstep, a whisper, animals staring at nothing.")
+            .define("echoes", true);
+    public static final ForgeConfigSpec.IntValue RETURN_AFTER_DAYS = BUILDER
+            .comment("Days after banishment until it comes back and everything starts again from stage 1. 0 = never.")
+            .defineInRange("returnAfterDays", 0, 0, 10000);
 
     static {
         BUILDER.pop().push("events");

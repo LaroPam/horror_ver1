@@ -5,6 +5,7 @@ import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntManager;
 import com.laropam.cornerofeye.network.HorrorNetwork;
 import com.laropam.cornerofeye.network.HorrorPacket;
+import com.laropam.cornerofeye.registry.ModEntities;
 import com.laropam.cornerofeye.registry.ModItems;
 import com.laropam.cornerofeye.registry.ModSounds;
 import net.minecraft.ChatFormatting;
@@ -24,6 +25,8 @@ import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -88,16 +91,22 @@ public class LanternOfRevelationItem extends Item {
             }
         }
 
-        TheOneEntity one = HauntManager.findTheOne(level);
-        if (one == null) {
-            return;
+        // The real one, or on the last night one of its empty copies: whichever the flash catches first.
+        List<TheOneEntity> ones = new ArrayList<>(level.getEntities(ModEntities.THE_ONE.get(), one -> one.isAlive() && one.distanceTo(player) < 40.0D));
+        ones.sort(Comparator.comparingDouble(one -> one.distanceToSqr(player)));
+        for (TheOneEntity one : ones) {
+            // Once the hunt begins it stays further out of reach.
+            double radius = one.getStage() >= HauntData.HUNTING ? 12.0D : 20.0D;
+            if (one.isCaughtBy(player, radius)) {
+                one.reveal(player);
+                return;
+            }
         }
-        // Once the hunt begins it stays further out of reach.
-        double radius = one.getStage() >= HauntData.HUNTING ? 12.0D : 20.0D;
-        if (one.isCaughtBy(player, radius)) {
-            one.reveal(player);
-        } else if (one.distanceTo(player) < radius * 1.5D) {
-            one.scareAway();
+        for (TheOneEntity one : ones) {
+            double radius = one.getStage() >= HauntData.HUNTING ? 12.0D : 20.0D;
+            if (!one.isDecoy() && one.distanceTo(player) < radius * 1.5D) {
+                one.scareAway();
+            }
         }
     }
 

@@ -15,6 +15,12 @@ import net.minecraft.world.level.Level;
  * comes more often and moves faster.
  */
 public final class Nights {
+    /** What kind of card to show: sent as the x of the NIGHT_CARD packet. */
+    public static final int CARD_NIGHT = 0;
+    public static final int CARD_BLOOD = 1;
+    public static final int CARD_FINALE = 2;
+    public static final int CARD_VICTORY = 3;
+
     private static Boolean wasNight;
 
     public static boolean isNightTime(Level level) {
@@ -31,6 +37,7 @@ public final class Nights {
             } else {
                 data.setBloodMoon(false);
                 server.getPlayerList().getPlayers().forEach(player -> sync(player, data));
+                Finale.dawn(server);
             }
         }
         wasNight = night;
@@ -51,10 +58,14 @@ public final class Nights {
             sync(player, data);
             Doll.nightfall(player);
             if (newNight || blood) {
-                HorrorNetwork.send(player, HorrorPacket.Type.NIGHT_CARD, new BlockPos(blood ? 1 : 0, 0, 0), night);
+                int card = Finale.isDue(data) ? CARD_FINALE : blood ? CARD_BLOOD : CARD_NIGHT;
+                HorrorNetwork.send(player, HorrorPacket.Type.NIGHT_CARD, new BlockPos(card, 0, 0), night);
                 HorrorNetwork.playSoundTo(player, ModSounds.NIGHT_BELL.get(), SoundSource.AMBIENT, player.getEyePosition(), 1.0F,
                         blood ? 0.8F : 1.0F);
             }
+        }
+        if (Finale.isDue(data)) {
+            Finale.beginNight(server);
         }
     }
 

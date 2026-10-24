@@ -82,6 +82,7 @@ public final class HauntManager {
         if (data.isBanished()) {
             if (serverTicks % 20 == 0) {
                 server.getPlayerList().getPlayers().forEach(player -> syncStage(player, HorrorPacket.DEFEATED));
+                Finale.afterwards(server, data);
             }
             return;
         }
@@ -168,7 +169,7 @@ public final class HauntManager {
 
     @Nullable
     public static TheOneEntity findTheOne(ServerLevel level) {
-        for (TheOneEntity one : level.getEntities(ModEntities.THE_ONE.get(), entity -> entity.isAlive())) {
+        for (TheOneEntity one : level.getEntities(ModEntities.THE_ONE.get(), entity -> entity.isAlive() && !entity.isDecoy())) {
             return one;
         }
         return null;
@@ -269,7 +270,24 @@ public final class HauntManager {
         if (spot == null) {
             return null;
         }
-        return TheOneEntity.spawn(level, victim, spot, stage, phase);
+        TheOneEntity one = TheOneEntity.spawn(level, victim, spot, stage, phase);
+        if (one != null && Finale.isTonight(HauntData.get(level.getServer()))) {
+            Finale.spawnDecoys(level, victim, stage);
+        }
+        return one;
+    }
+
+    /** Comes straight for someone, right now: the last night doesn't wait. */
+    static void huntNow(MinecraftServer server) {
+        HauntData data = HauntData.get(server);
+        ServerLevel overworld = server.overworld();
+        if (data.isBanished() || findTheOne(overworld) != null) {
+            return;
+        }
+        ServerPlayer victim = pickVictim(overworld);
+        if (victim != null) {
+            appear(victim, data.getStage(), Phase.HUNT);
+        }
     }
 
     /** Called when it leaves the world for any reason. */
@@ -294,6 +312,7 @@ public final class HauntManager {
 
         if (exit == Exit.WOUNDED && data.isBanished()) {
             one.playBanishEffects(level);
+            Finale.victory(level, one);
             Component message = Component.translatable("cornerofeye.message.banished").withStyle(ChatFormatting.GOLD, ChatFormatting.ITALIC);
             for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
                 player.sendSystemMessage(message);
@@ -305,6 +324,16 @@ public final class HauntManager {
     /** Called the moment the Lantern of Revelation catches it. */
     public static void onWounded(ServerLevel level, TheOneEntity one, ServerPlayer catcher) {
         HauntData data = HauntData.get(level.getServer());
+        if (Finale.isDue(data) && !data.isBloodMoon()) {
+            // The last one only counts on the last night.
+            Component laugh = Component.translatable("cornerofeye.message.not_tonight").withStyle(ChatFormatting.DARK_RED, ChatFormatting.ITALIC);
+            for (ServerPlayer player : level.players()) {
+                if (player.distanceToSqr(one) < 64.0D * 64.0D) {
+                    player.displayClientMessage(laugh, true);
+                }
+            }
+            return;
+        }
         data.addWound();
         int left = Math.max(0, HorrorConfig.WOUNDS_TO_BANISH.get() - data.getWounds());
         Component message = left > 0
@@ -408,6 +437,7 @@ public final class HauntManager {
         TASKS.clear();
         lastStage = -1;
         Nights.reset();
+        Finale.reset();
     }
 
     /** Runs one event right now, for commands. */

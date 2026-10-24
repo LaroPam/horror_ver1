@@ -13,6 +13,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -35,6 +36,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -124,6 +126,21 @@ public final class LightSuppression {
             changed(level, pos, false);
         }
         return wasDark || wasFrozen;
+    }
+
+    /** It is gone for good: everything it ever put out gives light again. */
+    public static void relightAll(MinecraftServer server) {
+        for (ServerLevel level : server.getAllLevels()) {
+            Set<Long> positions = new HashSet<>();
+            for (Map<ResourceKey<Level>, Map<Long, Block>> store : List.of(DARK, FROZEN)) {
+                Map<Long, Block> map = store.get(level.dimension());
+                if (map != null) {
+                    positions.addAll(map.keySet());
+                }
+            }
+            positions.forEach(pos -> relight(level, BlockPos.of(pos)));
+            LOCKED.remove(level.dimension());
+        }
     }
 
     private static boolean remove(Map<ResourceKey<Level>, Map<Long, Block>> store, ServerLevel level, BlockPos pos) {

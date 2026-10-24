@@ -35,8 +35,8 @@ public final class Journal {
         FLASH(2),
         /** The moments, putting lights back on, and the things that help (and the doll). */
         MOMENTS(5),
-        /** Three times. */
-        THREE(1),
+        /** Three times, and the last one under a blood moon. */
+        THREE(2),
         /** The seventh night. */
         HUNT(2);
 

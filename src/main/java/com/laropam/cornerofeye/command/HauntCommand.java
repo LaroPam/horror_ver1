@@ -65,6 +65,9 @@ public final class HauntCommand {
                                 .executes(ctx -> event(ctx, ctx.getSource().getPlayerOrException()))
                                 .then(Commands.argument("target", EntityArgument.player())
                                         .executes(ctx -> event(ctx, EntityArgument.getPlayer(ctx, "target"))))))
+                .then(Commands.literal("wounds")
+                        .then(Commands.argument("wounds", IntegerArgumentType.integer(0, 100))
+                                .executes(ctx -> setWounds(ctx, IntegerArgumentType.getInteger(ctx, "wounds")))))
                 .then(Commands.literal("dream")
                         .executes(ctx -> dream(ctx, ctx.getSource().getPlayerOrException()))
                         .then(Commands.argument("target", EntityArgument.player())
@@ -161,6 +164,12 @@ public final class HauntCommand {
             return 0;
         }
         ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.event", name, target.getDisplayName()), true);
+        return 1;
+    }
+
+    private static int setWounds(CommandContext<CommandSourceStack> ctx, int wounds) {
+        data(ctx).setWounds(wounds);
+        ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.wounds", wounds), true);
         return 1;
     }
 

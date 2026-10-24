@@ -26,6 +26,8 @@ public class HauntData extends SavedData {
     private long nextMassacre;
     private int lastCardNight;
     private boolean bloodMoon;
+    /** Overworld game time when it was banished, for its optional return. */
+    private long banishedAt;
 
     public static HauntData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(HauntData::load, HauntData::new, NAME);
@@ -42,6 +44,7 @@ public class HauntData extends SavedData {
         data.nextMassacre = tag.getLong("NextMassacre");
         data.lastCardNight = tag.getInt("LastCardNight");
         data.bloodMoon = tag.getBoolean("BloodMoon");
+        data.banishedAt = tag.getLong("BanishedAt");
         return data;
     }
 
@@ -56,6 +59,7 @@ public class HauntData extends SavedData {
         tag.putLong("NextMassacre", this.nextMassacre);
         tag.putInt("LastCardNight", this.lastCardNight);
         tag.putBoolean("BloodMoon", this.bloodMoon);
+        tag.putLong("BanishedAt", this.banishedAt);
         return tag;
     }
 
@@ -103,6 +107,12 @@ public class HauntData extends SavedData {
 
     public int getWounds() {
         return this.wounds;
+    }
+
+    public void setWounds(int wounds) {
+        this.wounds = wounds;
+        this.banished = wounds >= HorrorConfig.WOUNDS_TO_BANISH.get();
+        this.setDirty();
     }
 
     /** @return true if this wound banished it. */
@@ -164,6 +174,27 @@ public class HauntData extends SavedData {
 
     public void setBloodMoon(boolean bloodMoon) {
         this.bloodMoon = bloodMoon;
+        this.setDirty();
+    }
+
+    public long getBanishedAt() {
+        return this.banishedAt;
+    }
+
+    public void setBanishedAt(long gameTime) {
+        this.banishedAt = gameTime;
+        this.setDirty();
+    }
+
+    /** It is back: wounds healed, and the haunt starts over at {@code ticks}. */
+    public void revive(long ticks) {
+        this.banished = false;
+        this.wounds = 0;
+        this.stageOverride = -1;
+        this.ticks = ticks;
+        this.nextAppearance = ticks + 2400;
+        this.nextMoment = -1;
+        this.bloodMoon = false;
         this.setDirty();
     }
 

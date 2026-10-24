@@ -36,6 +36,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -106,6 +107,8 @@ public class TheOneEntity extends Monster {
     /** Client-side: smoothed 0 = standing, 1 = on all fours. */
     private float crawl;
     private float crawlO;
+    /** One of its empty copies on the last night: catching it wastes a scrap. Server side only. */
+    private boolean decoy;
     /** Client-side: ticks since the scene step last changed. */
     private int animTicks;
     private int lastAnimSeen = -1;
@@ -519,6 +522,14 @@ public class TheOneEntity extends Monster {
         }
     }
 
+    public boolean isDecoy() {
+        return this.decoy;
+    }
+
+    public void makeDecoy() {
+        this.decoy = true;
+    }
+
     /** Switches to {@code phase} for exactly {@code ticks}: in a nightmare it doesn't wander off on its own. */
     public void holdPhase(Phase phase, int ticks) {
         this.startPhase(phase);
@@ -670,6 +681,12 @@ public class TheOneEntity extends Monster {
             Nightmares.end(victim, false);
             return;
         }
+        if (this.decoy) {
+            // Nothing there. A cold draught, and it is gone.
+            this.playSoundAt(ModSounds.VANISH.get(), 1.0F);
+            this.discard();
+            return;
+        }
         HorrorNetwork.send(victim, HorrorPacket.Type.JUMPSCARE, 18);
         this.level().playSound(victim, this.getX(), this.getY(), this.getZ(), ModSounds.SCREAM.get(), SoundSource.HOSTILE, 1.5F, 1.0F);
         float damage = (float) (victim.getMaxHealth() * HorrorConfig.TOUCH_DAMAGE_FRACTION.get());
@@ -699,6 +716,14 @@ public class TheOneEntity extends Monster {
         if (!(this.level() instanceof ServerLevel level) || this.getPhase() == Phase.REVEALED) {
             return;
         }
+        if (this.decoy) {
+            // Caught nothing: an empty copy, laughing as it comes apart.
+            this.playSoundAt(ModSounds.WAIL.get(), 1.2F);
+            level.sendParticles(ParticleTypes.SQUID_INK, this.getX(), this.getY() + 1.6D, this.getZ(), 40, 0.4D, 1.0D, 0.4D, 0.05D);
+            catcher.displayClientMessage(Component.translatable("cornerofeye.message.decoy").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC), true);
+            this.discard();
+            return;
+        }
         Player victim = this.victimId == null ? null : level.getPlayerByUUID(this.victimId);
         if (this.challenge != null && victim instanceof ServerPlayer serverVictim) {
             // Caught in the middle of its moment: that counts as surviving it.
@@ -723,9 +748,23 @@ public class TheOneEntity extends Monster {
 
     /** The last wound: it comes apart. */
     public void playBanishEffects(ServerLevel level) {
-        level.sendParticles(ParticleTypes.SQUID_INK, this.getX(), this.getY() + 1.6D, this.getZ(), 120, 0.5D, 1.2D, 0.5D, 0.08D);
-        level.sendParticles(ParticleTypes.SOUL, this.getX(), this.getY() + 1.6D, this.getZ(), 40, 0.5D, 1.2D, 0.5D, 0.05D);
+        level.sendParticles(ParticleTypes.SQUID_INK, this.getX(), this.getY() + 1.6D, this.getZ(), 240, 0.6D, 1.6D, 0.6D, 0.12D);
+        level.sendParticles(ParticleTypes.SOUL, this.getX(), this.getY() + 1.6D, this.getZ(), 80, 0.6D, 1.6D, 0.6D, 0.08D);
+        level.sendParticles(ParticleTypes.SCULK_SOUL, this.getX(), this.getY() + 2.5D, this.getZ(), 40, 0.3D, 2.0D, 0.3D, 0.1D);
         level.playSound(null, this.getX(), this.getY(), this.getZ(), ModSounds.BANISH.get(), SoundSource.HOSTILE, 4.0F, 1.0F);
+        // Lightning without fire, and a flash that everyone close by sees.
+        LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
+        if (bolt != null) {
+            bolt.moveTo(this.getX(), this.getY(), this.getZ());
+            bolt.setVisualOnly(true);
+            level.addFreshEntity(bolt);
+        }
+        for (ServerPlayer player : level.players()) {
+            double dist = player.distanceTo(this);
+            if (dist < 64.0D) {
+                HorrorNetwork.send(player, HorrorPacket.Type.FLASH, (int) (100 * (1.0D - dist / 64.0D)));
+            }
+        }
     }
 
     /** The lantern flash didn't catch it, but it doesn't like light this bright. */
@@ -839,7 +878,7 @@ public class TheOneEntity extends Monster {
             HorrorNetwork.send(victim, HorrorPacket.Type.CHALLENGE_END, 2);
         }
         this.challenge = null;
-        if (this.level() instanceof ServerLevel level) {
+        if (this.level() instanceof ServerLevel level && !this.decoy) {
             HauntManager.onGone(level, this, exit);
         }
         this.discard();

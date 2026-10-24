@@ -6,6 +6,7 @@ import com.laropam.cornerofeye.entity.Challenge;
 import com.laropam.cornerofeye.entity.Phase;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.HauntData;
+import com.laropam.cornerofeye.haunt.Nights;
 import com.laropam.cornerofeye.haunt.LightSuppression;
 import com.laropam.cornerofeye.network.HorrorPacket;
 import com.laropam.cornerofeye.registry.ModSounds;
@@ -92,7 +93,8 @@ public final class ClientHorror {
 
     private static final int CARD_LENGTH = 150;
     private static int cardNight;
-    private static boolean cardBlood;
+    /** Nights.CARD_*: an ordinary night, a blood moon, the last night, or the end of it all. */
+    private static int cardKind;
     private static int cardTicks;
     private static boolean bloodMoon;
     private static float blood;
@@ -154,7 +156,7 @@ public final class ClientHorror {
             case CHALLENGE_END -> challengeType = -1;
             case NIGHT_CARD -> {
                 cardNight = msg.data();
-                cardBlood = msg.pos().getX() == 1;
+                cardKind = msg.pos().getX();
                 cardTicks = CARD_LENGTH;
             }
             case BLOOD_MOON -> bloodMoon = msg.data() == 1;
@@ -545,7 +547,8 @@ public final class ClientHorror {
             return;
         }
         Font font = Minecraft.getInstance().font;
-        boolean red = cardBlood || cardNight >= 7;
+        boolean victory = cardKind == Nights.CARD_VICTORY;
+        boolean red = !victory && (cardKind != Nights.CARD_NIGHT || cardNight >= 7);
         int a = (int) (alpha * 255.0F) << 24;
         PoseStack pose = graphics.pose();
         float y = height * 0.38F;
@@ -554,16 +557,21 @@ public final class ClientHorror {
         pose.pushPose();
         float jitter = RANDOM.nextFloat() < 0.08F ? (RANDOM.nextFloat() - 0.5F) * 4.0F : 0.0F;
         pose.translate(width / 2.0F + jitter, y, 0.0F);
-        pose.scale(5.0F, 5.0F, 1.0F);
-        graphics.drawCenteredString(font, Component.translatable("cornerofeye.night.title", cardNight), 0, -4, a | (red ? 0xC81E1E : 0xD8D4CC));
+        pose.scale(victory ? 4.0F : 5.0F, victory ? 4.0F : 5.0F, 1.0F);
+        Component title = victory ? Component.translatable("cornerofeye.night.victory") : Component.translatable("cornerofeye.night.title", cardNight);
+        graphics.drawCenteredString(font, title, 0, -4, a | (victory ? 0xEADCA6 : red ? 0xC81E1E : 0xD8D4CC));
         pose.popPose();
 
-        Component sub = cardBlood ? Component.translatable("cornerofeye.night.blood")
-                : Component.translatable(cardNight <= 7 ? "cornerofeye.night.sub." + cardNight : "cornerofeye.night.sub.late");
+        Component sub = switch (cardKind) {
+            case Nights.CARD_VICTORY -> Component.translatable("cornerofeye.night.victory.sub");
+            case Nights.CARD_FINALE -> Component.translatable("cornerofeye.night.finale");
+            case Nights.CARD_BLOOD -> Component.translatable("cornerofeye.night.blood");
+            default -> Component.translatable(cardNight <= 7 ? "cornerofeye.night.sub." + cardNight : "cornerofeye.night.sub.late");
+        };
         pose.pushPose();
         pose.translate(width / 2.0F, y + 26.0F, 0.0F);
         pose.scale(1.5F, 1.5F, 1.0F);
-        graphics.drawCenteredString(font, sub.copy().withStyle(ChatFormatting.ITALIC), 0, 0, a | (red ? 0xA02020 : 0x9A9A9A));
+        graphics.drawCenteredString(font, sub.copy().withStyle(ChatFormatting.ITALIC), 0, 0, a | (victory ? 0xB8B0A0 : red ? 0xA02020 : 0x9A9A9A));
         pose.popPose();
     }
 
