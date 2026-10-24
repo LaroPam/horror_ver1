@@ -588,6 +588,95 @@ def paint_marks():
     img.save(os.path.join(ROOT, "block", "mark_smear.png"))
 
 
+def paint_grid(name, rows, palette):
+    """Hand-drawn 16x16 item: one character per pixel, '.' is transparent."""
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                img.putpixel((x, y), jitter(palette[ch], 4)[:3] + (255,))
+    img.save(os.path.join(ROOT, "item", name + ".png"))
+
+
+def paint_new_items():
+    paint_grid("warding_bell", [
+        "................",
+        ".......tt.......",
+        "......t..t......",
+        ".......tt.......",
+        "......bBBb......",
+        ".....bBBBBb.....",
+        ".....bBhBBb.....",
+        ".....bBhBBb.....",
+        "....bBBhBBBb....",
+        "....bBBBBBBb....",
+        "...bBBBBBBBBb...",
+        "...dddddddddd...",
+        "....kkkkkkkk....",
+        ".......cc.......",
+        ".......c........",
+        "................",
+    ], {"t": (196, 180, 150), "b": (122, 88, 30), "B": (196, 152, 58), "h": (240, 214, 130),
+        "d": (92, 64, 22), "k": (24, 18, 14), "c": (60, 56, 52)})
+    paint_grid("hand_mirror", [
+        "................",
+        "....ffffff......",
+        "...fgGGGggf.....",
+        "..fgGWGGgggf....",
+        "..fgWGGgggsf....",
+        "..fGGGgggssf....",
+        "..fGGgggsssf....",
+        "..fggggsssdf....",
+        "...fgsssddf.....",
+        "....ffffff......",
+        "........ww......",
+        ".........ww.....",
+        "..........ww....",
+        "...........ww...",
+        "............ww..",
+        "................",
+    ], {"f": (70, 66, 62), "g": (120, 132, 140), "G": (168, 182, 190), "W": (236, 242, 246),
+        "s": (82, 94, 104), "d": (44, 52, 60), "w": (110, 78, 46)})
+    paint_grid("flare", [
+        "................",
+        "..........y.....",
+        ".........yo.....",
+        "........oc......",
+        ".......ccRr.....",
+        "......wwRr......",
+        ".....RwwR.......",
+        "....RRRr........",
+        "...RRRr.........",
+        "..RRRr..........",
+        "..RRr...........",
+        "..er............",
+        "................",
+        "................",
+        "................",
+        "................",
+    ], {"y": (255, 236, 120), "o": (255, 140, 40), "c": (80, 76, 72), "R": (196, 30, 30), "r": (120, 16, 18),
+        "w": (230, 226, 214), "e": (64, 12, 12)})
+    paint_grid("cursed_doll", [
+        "................",
+        "......hhhh......",
+        ".....hssssh.....",
+        "....hsXsskss....",
+        "....hssssssh....",
+        "....hsmmmmsh....",
+        ".....ssssss.....",
+        "...a.dddddd.a...",
+        "..aa.dDkkDd.aa..",
+        "....dddkkddd....",
+        "....dddddddd....",
+        "...dddddddddd...",
+        "...d.ll..ll.d...",
+        ".....ll..ll.....",
+        ".....bb..bb.....",
+        "................",
+    ], {"h": (20, 16, 18), "s": (196, 176, 140), "X": (90, 10, 14), "k": (10, 8, 10), "m": (110, 20, 24),
+        "a": (180, 160, 126), "d": (98, 34, 36), "D": (130, 46, 48), "l": (176, 156, 122), "b": (40, 30, 26)})
+
+
 if __name__ == "__main__":
     for sub in ("entity", "gui", "item"):
         os.makedirs(os.path.join(ROOT, sub), exist_ok=True)
@@ -603,4 +692,5 @@ if __name__ == "__main__":
     paint_unlit_torch()
     paint_blood_moon()
     paint_marks()
+    paint_new_items()
     print("textures written to", os.path.normpath(ROOT))

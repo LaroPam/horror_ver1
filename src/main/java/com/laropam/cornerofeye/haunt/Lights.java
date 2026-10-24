@@ -53,7 +53,9 @@ public final class Lights {
         if (isSnuffable(state)) {
             return true;
         }
-        if (!state.getFluidState().isEmpty() || state.getBlock() instanceof BaseFireBlock || state.getLightEmission(level, pos) <= 0) {
+        // Light blocks are what a burning flare gives off: that fire it cannot put out.
+        if (!state.getFluidState().isEmpty() || state.getBlock() instanceof BaseFireBlock || state.is(Blocks.LIGHT)
+                || state.getLightEmission(level, pos) <= 0) {
             return false;
         }
         return !LightSuppression.isSmothered(level, pos);

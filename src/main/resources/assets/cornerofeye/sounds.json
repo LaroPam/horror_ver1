@@ -138,5 +138,11 @@
     "sounds": [
       "cornerofeye:crack"
     ]
+  },
+  "warding_bell": {
+    "subtitle": "subtitles.cornerofeye.warding_bell",
+    "sounds": [
+      "cornerofeye:warding_bell"
+    ]
   }
 }

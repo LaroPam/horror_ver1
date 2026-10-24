@@ -2,6 +2,7 @@ package com.laropam.cornerofeye.registry;
 
 import com.laropam.cornerofeye.CornerOfTheEye;
 import com.laropam.cornerofeye.entity.CorpseEntity;
+import com.laropam.cornerofeye.entity.FlareEntity;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -29,6 +30,13 @@ public final class ModEntities {
                     .fireImmune()
                     .clientTrackingRange(8)
                     .build("corpse"));
+
+    public static final RegistryObject<EntityType<FlareEntity>> FLARE = ENTITIES.register("flare",
+            () -> EntityType.Builder.<FlareEntity>of(FlareEntity::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F)
+                    .clientTrackingRange(8)
+                    .updateInterval(10)
+                    .build("flare"));
 
     public static void registerAttributes(EntityAttributeCreationEvent event) {
         event.put(THE_ONE.get(), TheOneEntity.createAttributes().build());

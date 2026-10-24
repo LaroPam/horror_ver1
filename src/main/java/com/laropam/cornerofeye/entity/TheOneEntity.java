@@ -1,6 +1,7 @@
 package com.laropam.cornerofeye.entity;
 
 import com.laropam.cornerofeye.HorrorConfig;
+import com.laropam.cornerofeye.haunt.Doll;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntManager;
 import com.laropam.cornerofeye.haunt.LightSuppression;
@@ -422,7 +423,7 @@ public class TheOneEntity extends Monster {
             // You walked up to where it was standing. Nothing there but this.
             boolean scrap = this.stage < HauntData.HUNTING || this.random.nextFloat() < 0.3F;
             if (scrap) {
-                ItemEntity item = new ItemEntity(level, this.getX(), this.getY() + 0.2D, this.getZ(), new ItemStack(ModItems.SHADOW_SCRAP.get()));
+                ItemEntity item = new ItemEntity(level, this.getX(), this.getY() + 0.2D, this.getZ(), scraps(victim));
                 item.setDeltaMovement(Vec3.ZERO);
                 item.setExtendedLifetime();
                 level.addFreshEntity(item);
@@ -602,7 +603,7 @@ public class TheOneEntity extends Monster {
         }
         // It lets you go this time, and leaves something behind.
         if (this.level() instanceof ServerLevel level && (this.stage < HauntData.HUNTING || this.random.nextBoolean())) {
-            ItemEntity item = new ItemEntity(level, this.getX(), this.getY() + 0.2D, this.getZ(), new ItemStack(ModItems.SHADOW_SCRAP.get()));
+            ItemEntity item = new ItemEntity(level, this.getX(), this.getY() + 0.2D, this.getZ(), scraps(victim));
             item.setDeltaMovement(Vec3.ZERO);
             item.setExtendedLifetime();
             level.addFreshEntity(item);
@@ -634,6 +635,11 @@ public class TheOneEntity extends Monster {
         float yaw = yawTowards(this.position(), target);
         this.setYRot(yaw);
         this.setYBodyRot(yaw);
+    }
+
+    /** What it leaves behind: one scrap, or two for whoever carries the doll. */
+    private static ItemStack scraps(ServerPlayer victim) {
+        return new ItemStack(ModItems.SHADOW_SCRAP.get(), Doll.carries(victim) ? 2 : 1);
     }
 
     public void rememberSmothered(BlockPos pos) {

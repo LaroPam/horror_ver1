@@ -49,6 +49,7 @@ public final class Nights {
         }
         for (ServerPlayer player : overworld.players()) {
             sync(player, data);
+            Doll.nightfall(player);
             if (newNight || blood) {
                 HorrorNetwork.send(player, HorrorPacket.Type.NIGHT_CARD, new BlockPos(blood ? 1 : 0, 0, 0), night);
                 HorrorNetwork.playSoundTo(player, ModSounds.NIGHT_BELL.get(), SoundSource.AMBIENT, player.getEyePosition(), 1.0F,

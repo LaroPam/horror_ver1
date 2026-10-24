@@ -208,8 +208,12 @@ public final class HauntManager {
             default -> HorrorConfig.MINUTES_BETWEEN_MOMENTS_HUNTING.get();
         };
         long ticks = (long) (minutes * 1200L * (0.75D + random.nextDouble() * 0.5D));
-        // Under a blood moon it doesn't wait as long.
-        return HauntData.get(ServerLifecycleHooks.getCurrentServer()).isBloodMoon() ? ticks / 2 : ticks;
+        // Under a blood moon it doesn't wait as long, nor while someone carries the doll.
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (Doll.anyoneCarries(server)) {
+            ticks = ticks * 7 / 10;
+        }
+        return HauntData.get(server).isBloodMoon() ? ticks / 2 : ticks;
     }
 
     /** It prefers whoever is alone in the dark. */
@@ -228,7 +232,8 @@ public final class HauntManager {
             boolean alone = level.getNearestPlayer(player.getX(), player.getY(), player.getZ(), 24.0D,
                     other -> other != player && !other.isSpectator()) == null;
             candidates.add(player);
-            weights.add(1 + (context.dark() ? 2 : 0) + (alone ? 2 : 0));
+            // ...and whoever carries the doll.
+            weights.add(1 + (context.dark() ? 2 : 0) + (alone ? 2 : 0) + (Doll.carries(player) ? 6 : 0));
         }
         if (candidates.isEmpty()) {
             return null;
@@ -282,6 +287,9 @@ public final class HauntManager {
                 default -> 1200 + random.nextInt(1200);
             };
         };
+        if (Doll.anyoneCarries(level.getServer())) {
+            delay = delay * 3 / 5;
+        }
         data.setNextAppearance(data.getTicks() + (data.isBloodMoon() ? delay / 2 : delay));
 
         if (exit == Exit.WOUNDED && data.isBanished()) {

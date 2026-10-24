@@ -12,6 +12,7 @@ import com.laropam.cornerofeye.haunt.Sight;
 import com.laropam.cornerofeye.haunt.SpotFinder;
 import com.laropam.cornerofeye.network.HorrorNetwork;
 import com.laropam.cornerofeye.registry.ModEntities;
+import com.laropam.cornerofeye.registry.ModItems;
 import com.laropam.cornerofeye.registry.ModSounds;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -24,7 +25,9 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.IronGolem;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -50,6 +53,7 @@ public final class MassacreScene implements SceneRunner {
     private final List<BlockPos> lights;
     private int nextKill = 100;
     private int quietSince = -1;
+    private boolean dollLeft;
 
     public MassacreScene(List<UUID> targets, List<BlockPos> lights) {
         this.targets = new ArrayList<>(targets);
@@ -119,8 +123,15 @@ public final class MassacreScene implements SceneRunner {
             target.stopSleeping();
         }
         if (target instanceof Villager villager && villager.isBaby()) {
-            // No body. No blood. Just an empty bed.
+            // No body. No blood. Just an empty bed, and once, a doll lying in it.
             villager.discard();
+            if (bed != null && !this.dollLeft) {
+                this.dollLeft = true;
+                ItemEntity doll = new ItemEntity(level, bed.getX() + 0.5D, bed.getY() + 0.6D, bed.getZ() + 0.5D, new ItemStack(ModItems.CURSED_DOLL.get()));
+                doll.setDeltaMovement(Vec3.ZERO);
+                doll.setUnlimitedLifetime();
+                level.addFreshEntity(doll);
+            }
             return;
         }
         level.playSound(null, pos.x, pos.y + 1.0D, pos.z, target instanceof Villager ? SoundEvents.VILLAGER_HURT : SoundEvents.IRON_GOLEM_HURT,

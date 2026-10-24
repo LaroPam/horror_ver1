@@ -33,8 +33,8 @@ public final class Journal {
         LANTERN(1),
         /** How the lantern works. */
         FLASH(2),
-        /** The moments and putting lights back on. */
-        MOMENTS(2),
+        /** The moments, putting lights back on, and the things that help (and the doll). */
+        MOMENTS(5),
         /** Three times. */
         THREE(1),
         /** The seventh night. */

@@ -329,6 +329,21 @@ def crack():
     return np.tanh(2.0 * (ticks + creak)) * env(len(tt), 0.01, 0.3)
 
 
+def warding_bell():
+    """A small handbell, struck twice by its clapper: bright, slightly sour partials ringing out."""
+    length = 1.6
+    tt = t(length)
+    partials = [(1318.0, 1.0, 3.2), (2894.0, 0.55, 5.0), (3610.0, 0.35, 6.5), (5120.0, 0.2, 9.0)]
+    out = np.zeros(len(tt))
+    for start, gain in [(0.0, 1.0), (0.11, 0.45)]:
+        n = int(start * SR)
+        sub = tt[:len(tt) - n]
+        strike = sum(np.sin(2 * np.pi * f * sub) * a * np.exp(-sub * d) for f, a, d in partials)
+        strike = strike * (1 + 0.15 * np.sin(2 * np.pi * 6 * sub))
+        out[n:] += strike * gain
+    return np.tanh(1.3 * out) * env(len(tt), 0.002, 0.4)
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     write("the_one_breath1", breath(0), -3)
@@ -352,4 +367,5 @@ if __name__ == "__main__":
     write("timer_tick", timer_tick(), -2)
     write("night_bell", night_bell(), -2)
     write("crack", crack(), -3)
+    write("warding_bell", warding_bell(), -3)
     print("sounds written to", os.path.normpath(OUT))
