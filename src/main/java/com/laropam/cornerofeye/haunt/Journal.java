@@ -28,7 +28,7 @@ public final class Journal {
         /** How it behaves. */
         ARRIVAL(3),
         /** Where the scraps come from. */
-        SCRAPS(2),
+        SCRAPS(3),
         /** The recipe. */
         LANTERN(1),
         /** How the lantern works. */

@@ -18,7 +18,8 @@ public enum HauntEvent {
     SIGN(2, 3, HauntEvents::sign),
     SCRATCHES(1, 4, c -> Marks.scratches(c.level(), c.player().blockPosition())),
     HANDPRINTS(2, 3, c -> Marks.handprintTrail(c.level(), c.player().position())),
-    WRITING(2, 3, c -> Marks.writing(c.level(), c.player().blockPosition(), 5, 14));
+    WRITING(2, 3, c -> Marks.writing(c.level(), c.player().blockPosition(), 5, 14)),
+    STARE(2, 3, Animals::stareAtNothing);
 
     public final int minStage;
     private final int weight;

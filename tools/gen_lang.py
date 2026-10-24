@@ -81,6 +81,7 @@ JOURNAL = {
         "scraps": [
             "I went to where I had seen it standing. It didn't let me close. But there was something on the ground: a scrap, cold, like a torn piece of shadow.",
             "I think they matter. Collect them while it is still only watching.\n\nLater it leaves almost nothing.",
+            "The dog growled at an empty corner all night. In the morning there was a scrap lying there.\n\nAnimals know where it is. Look where they look.",
         ],
         "lantern": [
             "Light doesn't kill it. It shows it.\n\nA lantern in the middle, a scrap on each side, amethyst in the corners. I made one. It hums.",
@@ -110,6 +111,7 @@ JOURNAL = {
         "scraps": [
             "Я пошёл туда, где видел его. Близко оно не подпустило. Но на земле что-то осталось: обрывок, холодный, как клочок тени.",
             "Кажется, они важны. Собирай их, пока оно только смотрит.\n\nПотом оно почти ничего не оставляет.",
+            "Пёс всю ночь рычал в пустой угол. Утром там лежал обрывок.\n\nЖивотные чувствуют, где оно. Смотри туда, куда смотрят они.",
         ],
         "lantern": [
             "Свет его не убивает. Он его показывает.\n\nФонарь в середине, обрывки по сторонам, аметист по углам. Я сделал такой. Он гудит.",
