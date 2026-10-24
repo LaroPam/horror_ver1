@@ -26,7 +26,7 @@ public class HauntData extends SavedData {
     private long nextMassacre;
     private int lastCardNight;
     private boolean bloodMoon;
-    /** Overworld game time when it was banished, for its optional return. */
+    /** Overworld day time (the world clock) when it was banished, for its optional return. */
     private long banishedAt;
 
     public static HauntData get(MinecraftServer server) {
@@ -112,6 +112,8 @@ public class HauntData extends SavedData {
     public void setWounds(int wounds) {
         this.wounds = wounds;
         this.banished = wounds >= HorrorConfig.WOUNDS_TO_BANISH.get();
+        // Counted again from the next check, for its optional return.
+        this.banishedAt = 0L;
         this.setDirty();
     }
 
@@ -195,6 +197,7 @@ public class HauntData extends SavedData {
         this.nextAppearance = ticks + 2400;
         this.nextMoment = -1;
         this.bloodMoon = false;
+        this.banishedAt = 0L;
         this.setDirty();
     }
 
@@ -208,6 +211,7 @@ public class HauntData extends SavedData {
         this.nextMassacre = 0;
         this.lastCardNight = 0;
         this.bloodMoon = false;
+        this.banishedAt = 0L;
         this.setDirty();
     }
 }

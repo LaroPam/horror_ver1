@@ -85,7 +85,7 @@ public final class Finale {
         }
         HauntData data = HauntData.get(server);
         data.setBloodMoon(false);
-        data.setBanishedAt(server.overworld().getGameTime());
+        data.setBanishedAt(server.overworld().getDayTime());
         LightSuppression.relightAll(server);
         LOCKED_TONIGHT.clear();
         ServerLevel overworld = server.overworld();
@@ -114,11 +114,12 @@ public final class Finale {
     static void afterwards(MinecraftServer server, HauntData data) {
         ServerLevel overworld = server.overworld();
         if (data.getBanishedAt() == 0L) {
-            data.setBanishedAt(overworld.getGameTime());
+            data.setBanishedAt(overworld.getDayTime());
         }
+        // Counted in days of the world's clock, so nights slept through count too.
         int days = HorrorConfig.RETURN_AFTER_DAYS.get();
         boolean night = Nights.isNightTime(overworld);
-        if (days > 0 && night && overworld.getGameTime() - data.getBanishedAt() >= days * 24000L) {
+        if (days > 0 && night && overworld.getDayTime() - data.getBanishedAt() >= days * 24000L) {
             data.revive(HorrorConfig.DAYS_UNTIL_WATCHING.get() * 24000L);
             Component message = Component.translatable("cornerofeye.message.returned").withStyle(ChatFormatting.DARK_RED, ChatFormatting.ITALIC);
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
