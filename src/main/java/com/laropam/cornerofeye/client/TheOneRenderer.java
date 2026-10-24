@@ -50,8 +50,13 @@ public class TheOneRenderer extends MobRenderer<TheOneEntity, TheOneModel> {
         }
         float crawl = entity.getCrawlAmount(partialTicks);
         if (crawl > 0.0F) {
-            // On all fours it lies along whatever it is climbing: up a tunnel, or straight up a wall like a spider.
-            poseStack.mulPose(Axis.XP.rotation(-entity.getClimb(partialTicks) * crawl));
+            // On all fours it lies along whatever it is climbing, head first: up a tunnel, or straight up a wall
+            // like a spider, belly against the blocks rather than half a block off them. Going up it faces the
+            // wall, coming down it has its back to the drop, so the wall is ahead going up and behind going down.
+            float climb = entity.getClimb(partialTicks) * crawl;
+            float steep = Mth.clamp((Mth.abs(Mth.sin(climb)) - 0.7F) / 0.3F, 0.0F, 1.0F);
+            poseStack.translate(0.0F, 0.0F, -0.35F * steep * Math.signum(climb));
+            poseStack.mulPose(Axis.XP.rotation(climb));
         }
     }
 

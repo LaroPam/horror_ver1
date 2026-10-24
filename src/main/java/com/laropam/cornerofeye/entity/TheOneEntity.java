@@ -96,6 +96,10 @@ public class TheOneEntity extends Monster {
     private static final double DIRECT_GAZE = 0.93D;
     /** The longest it keeps going straight through a wall the old way before it looks for a path again. */
     private static final int SEEP_TICKS = 80;
+    /** How long it stands below someone it can't climb to, looking up, before it stops waiting. */
+    private static final int STARE_TICKS = 100;
+    /** How long it stands behind you, still, once it has come up after you. */
+    private static final int LURK_TICKS = 40;
 
     @Nullable
     private UUID victimId;
@@ -142,6 +146,14 @@ public class TheOneEntity extends Monster {
     /** Ticks left of going straight through a wall it can neither get round nor break, and whether it is in it yet. */
     private int seepTicks;
     private boolean seepIn;
+    /** Hunting someone up in the open air it has nothing to climb to: how long it has stood below, looking up. */
+    private int stareTicks;
+    /** Where below it stands to be seen looking up, and where you were when it went there. */
+    @Nullable
+    private Vec3 stareSpot;
+    private Vec3 stareFrom = Vec3.ZERO;
+    /** Ticks left of standing still behind you, breathing, before it moves again. */
+    private int lurkTicks;
     /** Client-side: ticks since the dig state last changed. */
     private int digAge;
     private int lastDig;
@@ -341,6 +353,9 @@ public class TheOneEntity extends Monster {
         this.entityData.set(DATA_PHASE, phase.ordinal());
         this.upright = false;
         this.seepTicks = 0;
+        this.stareTicks = 0;
+        this.stareSpot = null;
+        this.lurkTicks = 0;
         this.navigator.reset();
         this.gazeTicks = 0;
         this.waypoint = null;
@@ -723,15 +738,26 @@ public class TheOneEntity extends Monster {
             // You can't face it. It is just somewhere else now, and a little closer.
             this.relocateCooldown = 20;
             Vec3 spot = this.findPeripheralSpot(level, victim, Math.max(2.5D, dist * 0.6D), Math.max(4.0D, dist * 0.85D), safe);
-            // When it has to dig its way to you, it can't skip a wall by being somewhere else.
-            if (spot != null && (!Burrow.allowed(level, this) || this.openPathTo(spot))) {
+            // When it has to dig its way to you, it can't skip a wall by being somewhere else. Up in the open air
+            // there is no wall to skip, only the height.
+            if (spot != null && (!Burrow.allowed(level, this) || this.openPathTo(spot)
+                    || this.stareTicks > 0 && Sight.clearLine(level, victim, spot.add(0.0D, 1.0D, 0.0D)))) {
                 this.blinkTo(spot);
                 return;
             }
         }
 
+        if (this.lurkTicks > 0) {
+            this.lurkTicks--;
+            this.setDeltaMovement(Vec3.ZERO);
+            this.face(victim.position());
+            this.ambientSounds(victim, 18.0D);
+            return;
+        }
+
         boolean victimInLight = isLit(level, victim, safe);
-        if (dist < 1.8D && !victimInLight && (!Burrow.allowed(level, this) || this.hasLineOfSight(victim))) {
+        // Its reach, not its eyes, decides: hunched in a low room its head is up in the ceiling.
+        if (dist < 1.8D && !victimInLight && (!Burrow.allowed(level, this) || this.openPathTo(victim.position()))) {
             this.touch(victim);
             return;
         }
@@ -751,14 +777,20 @@ public class TheOneEntity extends Monster {
             }
         } else {
             boolean canDig = Burrow.allowed(level, this);
-            Navigator.Result result = this.navigator.follow(level, this.burrow, target, speed, canDig);
-            blocked = result == Navigator.Result.STUCK || result == Navigator.Result.SEEP || result == Navigator.Result.ARRIVED && victimInLight;
-            if ((result == Navigator.Result.SEEP || result == Navigator.Result.STUCK && !canDig) && !victimInLight) {
-                // No way it can walk, open or dig (not allowed to dig, or bedrock, or something else it can't
-                // break): it goes through the wall, the old way.
-                this.seepTicks = SEEP_TICKS;
-                this.seepIn = false;
-                blocked = !this.driftTowards(target, speed, safe, true);
+            if (this.stareSpot != null && victim.position().distanceToSqr(this.stareFrom) > 9.0D) {
+                // You moved: maybe there is a way to you now.
+                this.stareSpot = null;
+            }
+            if (this.stareSpot != null) {
+                // Out of reach up there: it goes to stand where you can see it, and looks up at you.
+                Navigator.Result result = this.navigator.follow(level, this.burrow, this.stareSpot, speed, canDig);
+                if (result != Navigator.Result.MOVING && result != Navigator.Result.BUSY) {
+                    this.stareUp(level, victim, safe);
+                }
+                blocked = true;
+            } else {
+                Navigator.Result result = this.navigator.follow(level, this.burrow, target, speed, canDig);
+                blocked = this.huntStep(level, victim, result, canDig, victimInLight, speed, safe);
             }
         }
         if (blocked || victimInLight) {
@@ -772,6 +804,67 @@ public class TheOneEntity extends Monster {
             this.snuffCooldown = 80 + this.random.nextInt(60);
         }
         this.ambientSounds(victim, 18.0D);
+    }
+
+    /** What it does with how getting to you went this tick. @return whether it is held back (by walls, light, height) */
+    private boolean huntStep(ServerLevel level, ServerPlayer victim, Navigator.Result result, boolean canDig, boolean victimInLight,
+                             double speed, int safe) {
+        Vec3 target = victim.position();
+        boolean blocked = result == Navigator.Result.STUCK || result == Navigator.Result.SEEP || result == Navigator.Result.OUT_OF_REACH
+                || result == Navigator.Result.ARRIVED && victimInLight;
+        if ((result == Navigator.Result.SEEP || result == Navigator.Result.STUCK && !canDig) && !victimInLight) {
+            // No way it can walk, open or dig (not allowed to dig, or bedrock, or something else it can't
+            // break): it goes through the wall, the old way.
+            this.seepTicks = SEEP_TICKS;
+            this.seepIn = false;
+            blocked = !this.driftTowards(target, speed, safe, true);
+        }
+        if (result == Navigator.Result.OUT_OF_REACH) {
+            if (this.stareTicks % 20 == 0 && !this.hasLineOfSight(victim)) {
+                // Right under you it can't see you, and you can't see it. It wants you to: it goes to stand
+                // down there in front of where you are looking, far enough out to be seen past your edge.
+                double height = victim.getY() - this.getY();
+                this.stareSpot = SpotFinder.find(level, victim, 3.0D, 6.0D + height * 1.2D, 0.0F, 70.0F, (int) height + 6, 32,
+                        at -> at.y < victim.getY() - 2.0D && SpotFinder.isDark(level, at, safe)
+                                && Sight.clearLine(level, victim, at.add(0.0D, 1.5D, 0.0D)));
+                this.stareFrom = victim.position();
+            }
+            this.stareUp(level, victim, safe);
+        } else {
+            this.stareTicks = 0;
+        }
+        return blocked;
+    }
+
+    /**
+     * You are up in the open air where it can't climb (a platform, a sky base). It stands below you with its head
+     * tipped back and looks up at you, and once you have looked away it is up there with you, somewhere dark behind
+     * your back.
+     */
+    private void stareUp(ServerLevel level, ServerPlayer victim, int safe) {
+        this.setDeltaMovement(Vec3.ZERO);
+        this.setCrawling(!this.hasRoomToStand(this.position()));
+        this.face(victim.position());
+        if (++this.stareTicks < STARE_TICKS || Sight.canSee(level, victim, this.position().add(0.0D, 2.5D, 0.0D), 0.5D)) {
+            return;
+        }
+        Vec3 spot = SpotFinder.find(level, victim, 1.5D, 4.0D, 150.0F, 30.0F, 3, 20,
+                at -> SpotFinder.isDark(level, at, safe) && Sight.clearLine(level, victim, at.add(0.0D, 1.0D, 0.0D))
+                        && !Sight.canSee(level, victim, at.add(0.0D, 1.6D, 0.0D), 0.3D));
+        if (spot != null) {
+            this.blinkTo(spot);
+            // It doesn't take you at once. It stands there behind you, breathing, and lets you turn round.
+            this.lurkTicks = LURK_TICKS;
+            this.setCrawling(false);
+            this.face(victim.position());
+            this.playSoundAt(ModSounds.BREATH.get(), 1.0F);
+        }
+    }
+
+    /** Far enough to look straight up at you, or straight down. */
+    @Override
+    public int getMaxHeadXRot() {
+        return 85;
     }
 
     // ----------------------------------------------------------------- scenes
@@ -1134,6 +1227,9 @@ public class TheOneEntity extends Monster {
         this.relocateCooldown = 30;
         this.gazeTicks = 0;
         this.seepTicks = 0;
+        this.stareTicks = 0;
+        this.stareSpot = null;
+        this.lurkTicks = 0;
         this.navigator.reset();
         if (this.random.nextInt(3) == 0) {
             this.playSoundAt(ModSounds.SKITTER.get(), 0.8F);

@@ -46,7 +46,9 @@ final class Navigator {
     enum Result {
         MOVING, BUSY, ARRIVED, STUCK,
         /** Walled off by something it can neither get round nor break (bedrock): only the old way through is left. */
-        SEEP
+        SEEP,
+        /** The target is up in the open air, with nothing between to climb on (a floating platform, a sky base). */
+        OUT_OF_REACH
     }
 
     private enum Cell {
@@ -80,6 +82,8 @@ final class Navigator {
     private boolean reachesGoal;
     /** The way straight at the target starts with something it can't break. */
     private boolean walledOff;
+    /** The way straight at the target starts with open air it has nothing to hold on to in. */
+    private boolean outOfReach;
     private long plannedAt = -1000L;
     /** A door it opened and will quietly close behind itself once through. */
     @Nullable
@@ -118,7 +122,7 @@ final class Navigator {
         }
         if (current == null) {
             this.one.setDeltaMovement(Vec3.ZERO);
-            return this.reachesGoal ? Result.ARRIVED : this.walledOff ? Result.SEEP : Result.STUCK;
+            return this.reachesGoal ? Result.ARRIVED : this.walledOff ? Result.SEEP : this.outOfReach ? Result.OUT_OF_REACH : Result.STUCK;
         }
 
         Vec3 hips = this.one.position().add(0.0D, 0.45D, 0.0D);
@@ -142,8 +146,10 @@ final class Navigator {
                 BlockPos feet = feet(this.one.position());
                 boolean shaft = action.pos().getX() == feet.getX() && action.pos().getZ() == feet.getZ();
                 double reach = shaft ? 1.6D : Burrow.REACH * this.one.getVisualScale() + 0.5D;
-                // Only what its arms can get at in a straight line: not round a corner, through another wall.
-                boolean inReach = to.length() <= reach && this.openUpTo(level, hips, action.pos());
+                // Only what its arms can get at in a straight line: not round a corner, through another wall. A
+                // block below its level it digs from right above, head down, not by reaching down and forward.
+                boolean inReach = (shaft || action.pos().getY() >= feet.getY()) && to.length() <= reach
+                        && this.openUpTo(level, hips, action.pos());
                 if (inReach || this.path.indexOf(action) == this.index) {
                     if (!shaft && this.easeBack(level, at, hips, speed)) {
                         return Result.MOVING;
@@ -156,9 +162,12 @@ final class Navigator {
             }
         }
 
-        // Cut corners where nothing is in the way, so it moves in lines, not along the grid.
+        // Cut corners where nothing is in the way, so it moves in lines, not along the grid. Only on the level and
+        // over a floor: up a pillar or a wall it goes hand over hand, not through the air.
+        int floorY = feet(this.one.position()).getY();
         while (this.index + 1 < this.path.size() && this.path.get(this.index + 1).kind() == Kind.WALK
-                && this.clearLine(level, hips, Vec3.atBottomCenterOf(this.path.get(this.index + 1).pos()).add(0.0D, 0.45D, 0.0D))) {
+                && this.path.get(this.index + 1).pos().getY() == floorY
+                && this.clearWalk(level, hips, Vec3.atBottomCenterOf(this.path.get(this.index + 1).pos()).add(0.0D, 0.45D, 0.0D))) {
             this.index++;
         }
         current = this.path.get(this.index);
@@ -184,6 +193,7 @@ final class Navigator {
         this.path = Collections.emptyList();
         this.reachesGoal = false;
         this.walledOff = false;
+        this.outOfReach = false;
 
         BlockPos start = feet(this.one.position());
         Map<Long, Info> cells = new HashMap<>();
@@ -273,6 +283,7 @@ final class Navigator {
      */
     private List<Step> bore(ServerLevel level, BlockPos from, BlockPos to) {
         List<Step> steps = new ArrayList<>();
+        Map<Long, Info> cells = new HashMap<>();
         BlockPos pos = from;
         for (int i = 0; i < 8 && distance(pos, to) > 1.5D; i++) {
             // Of the moves that bring it closer, an open one first (up the wall to the right height before
@@ -280,6 +291,7 @@ final class Navigator {
             BlockPos next = null;
             Info nextInfo = null;
             int bestRank = Integer.MAX_VALUE;
+            int bestOrder = 3;
             int[] delta = {to.getX() - pos.getX(), to.getY() - pos.getY(), to.getZ() - pos.getZ()};
             for (int axis = 0; axis < 3; axis++) {
                 if (delta[axis] == 0) {
@@ -287,23 +299,28 @@ final class Navigator {
                 }
                 int sign = Integer.signum(delta[axis]);
                 BlockPos cell = pos.offset(axis == 0 ? sign : 0, axis == 1 ? sign : 0, axis == 2 ? sign : 0);
-                Info info = this.classify(level, cell, true);
-                int order = info.walkable() ? 0 : info.cell() == Cell.DOOR ? 1 : info.cell() == Cell.SOLID ? 2 : 3;
+                Info info = this.info(level, cells, cell, true);
+                // Open air it can only go up or along with something to hold on to.
+                boolean open = info.walkable() && (axis == 1 && sign < 0 || this.supported(level, cells, cell, true));
+                int order = open ? 0 : info.cell() == Cell.DOOR ? 1 : info.cell() == Cell.SOLID ? 2 : 3;
                 // Horizontal before vertical when it is just as far, so it doesn't dig shafts it needn't.
                 int rank = order * 1000 - Math.abs(delta[axis]) * 2 - (axis == 1 ? 0 : 1);
                 if (rank < bestRank) {
                     bestRank = rank;
+                    bestOrder = order;
                     next = cell;
                     nextInfo = info;
                 }
             }
-            Kind kind = nextInfo.walkable() ? Kind.WALK : switch (nextInfo.cell()) {
-                case DOOR -> Kind.OPEN;
-                case SOLID -> Kind.DIG;
+            Kind kind = switch (bestOrder) {
+                case 0 -> Kind.WALK;
+                case 1 -> Kind.OPEN;
+                case 2 -> Kind.DIG;
                 default -> null;
             };
             if (kind == null) {
                 this.walledOff = steps.isEmpty() && nextInfo.cell() == Cell.BLOCKED;
+                this.outOfReach = steps.isEmpty() && nextInfo.walkable();
                 break;
             }
             steps.add(new Step(next, kind));
@@ -366,6 +383,10 @@ final class Navigator {
     }
 
     private boolean supported(ServerLevel level, Map<Long, Info> cells, BlockPos pos, boolean canDig) {
+        // In water it swims: up under your boat as easily as along the bottom.
+        if (this.info(level, cells, pos, canDig).cell() == Cell.WATER) {
+            return true;
+        }
         if (this.holds(level, cells, pos.below(), canDig) || this.holds(level, cells, pos.above(), canDig)) {
             return true;
         }
@@ -501,13 +522,18 @@ final class Navigator {
         return true;
     }
 
-    private boolean clearLine(ServerLevel level, Vec3 from, Vec3 to) {
+    /** Open and dark all the way, with a floor under it (or water to swim in): it can go straight across. */
+    private boolean clearWalk(ServerLevel level, Vec3 from, Vec3 to) {
         Vec3 delta = to.subtract(from);
         int samples = Math.max(1, (int) Math.ceil(delta.length() / 0.3D));
         for (int i = 1; i <= samples; i++) {
             BlockPos cell = BlockPos.containing(from.add(delta.scale(i / (double) samples)));
             Info info = this.classify(level, cell, false);
             if (!info.walkable()) {
+                return false;
+            }
+            Cell below = this.classify(level, cell.below(), false).cell();
+            if (info.cell() != Cell.WATER && below != Cell.BLOCKED && below != Cell.LOW && below != Cell.DOOR) {
                 return false;
             }
         }
