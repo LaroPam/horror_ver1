@@ -14,6 +14,7 @@ import com.laropam.cornerofeye.registry.ModEntities;
 import com.laropam.cornerofeye.registry.ModSounds;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,6 +24,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -103,8 +108,14 @@ public final class MassacreScene implements SceneRunner {
     private void kill(ServerLevel level, LivingEntity target) {
         Vec3 pos = target.position();
         this.targets.remove(target.getUUID());
+        // Asleep in bed: remember the bed, then free it so it isn't left "occupied" forever.
+        BlockPos bed = target.isSleeping() ? target.getSleepingPos().orElse(null) : null;
+        Direction bedFacing = bed != null ? target.getBedOrientation() : null;
+        if (bed != null) {
+            target.stopSleeping();
+        }
         if (target instanceof Villager villager && villager.isBaby()) {
-            // No body. No blood. Just gone.
+            // No body. No blood. Just an empty bed.
             villager.discard();
             return;
         }
@@ -114,13 +125,35 @@ public final class MassacreScene implements SceneRunner {
         if (target instanceof Villager villager) {
             CorpseEntity corpse = ModEntities.CORPSE.get().create(level);
             if (corpse != null) {
-                corpse.moveTo(pos.x, pos.y, pos.z, level.random.nextFloat() * 360.0F, 0.0F);
+                if (bed != null && bedFacing != null) {
+                    // Killed in its sleep: it stays lying in its bed, head on the pillow.
+                    Vec3 middle = Vec3.atBottomCenterOf(bed).subtract(bedFacing.getStepX() * 0.5D, 0.0D, bedFacing.getStepZ() * 0.5D);
+                    corpse.moveTo(middle.x, bed.getY() + 0.5625D, middle.z, bedFacing.getOpposite().toYRot(), 0.0F);
+                    soakBed(level, bed, bedFacing);
+                } else {
+                    corpse.moveTo(pos.x, pos.y, pos.z, level.random.nextFloat() * 360.0F, 0.0F);
+                }
                 corpse.setVillagerData(villager.getVillagerData());
                 level.addFreshEntity(corpse);
             }
             villager.discard();
         } else {
             target.kill();
+        }
+    }
+
+    /** The sheets are red now. Both halves are swapped together so neither one breaks the other. */
+    private static void soakBed(ServerLevel level, BlockPos head, Direction facing) {
+        if (!HorrorConfig.ALLOW_BLOCK_CHANGES.get()) {
+            return;
+        }
+        for (BlockPos part : new BlockPos[]{head, head.relative(facing.getOpposite())}) {
+            BlockState state = level.getBlockState(part);
+            if (state.getBlock() instanceof BedBlock && !state.is(Blocks.RED_BED)) {
+                level.setBlock(part, Blocks.RED_BED.defaultBlockState()
+                        .setValue(BedBlock.FACING, state.getValue(BedBlock.FACING))
+                        .setValue(BedBlock.PART, state.getValue(BedBlock.PART)), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+            }
         }
     }
 

@@ -40,6 +40,8 @@ public class CorpseRenderer extends EntityRenderer<CorpseEntity> {
         poseStack.translate(0.0D, -1.501D, 0.0D);
 
         this.model.setupAnim(corpse, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F);
+        // A hat brim would stick straight up from a body on its back.
+        this.model.hatVisible(false);
         this.model.getHead().yRot = ((corpse.getId() * 37) % 100 / 100.0F - 0.5F) * 1.8F;
 
         VillagerData data = corpse.getVillagerData();
