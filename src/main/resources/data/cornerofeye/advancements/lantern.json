@@ -1,0 +1,32 @@
+{
+  "display": {
+    "icon": {
+      "item": "cornerofeye:lantern_of_revelation"
+    },
+    "title": {
+      "translate": "advancements.cornerofeye.lantern.title"
+    },
+    "description": {
+      "translate": "advancements.cornerofeye.lantern.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "lantern": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "cornerofeye:lantern_of_revelation"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "parent": "cornerofeye:shadow_scrap"
+}

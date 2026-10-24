@@ -1,0 +1,72 @@
+{
+  "variants": {
+    "variant=0": [
+      {
+        "model": "cornerofeye:block/blood_0"
+      },
+      {
+        "model": "cornerofeye:block/blood_0",
+        "y": 90
+      },
+      {
+        "model": "cornerofeye:block/blood_0",
+        "y": 180
+      },
+      {
+        "model": "cornerofeye:block/blood_0",
+        "y": 270
+      }
+    ],
+    "variant=1": [
+      {
+        "model": "cornerofeye:block/blood_1"
+      },
+      {
+        "model": "cornerofeye:block/blood_1",
+        "y": 90
+      },
+      {
+        "model": "cornerofeye:block/blood_1",
+        "y": 180
+      },
+      {
+        "model": "cornerofeye:block/blood_1",
+        "y": 270
+      }
+    ],
+    "variant=2": [
+      {
+        "model": "cornerofeye:block/blood_2"
+      },
+      {
+        "model": "cornerofeye:block/blood_2",
+        "y": 90
+      },
+      {
+        "model": "cornerofeye:block/blood_2",
+        "y": 180
+      },
+      {
+        "model": "cornerofeye:block/blood_2",
+        "y": 270
+      }
+    ],
+    "variant=3": [
+      {
+        "model": "cornerofeye:block/blood_3"
+      },
+      {
+        "model": "cornerofeye:block/blood_3",
+        "y": 90
+      },
+      {
+        "model": "cornerofeye:block/blood_3",
+        "y": 180
+      },
+      {
+        "model": "cornerofeye:block/blood_3",
+        "y": 270
+      }
+    ]
+  }
+}

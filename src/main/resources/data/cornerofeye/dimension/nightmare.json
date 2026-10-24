@@ -1,0 +1,12 @@
+{
+  "type": "cornerofeye:nightmare",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "layers": [],
+      "biome": "cornerofeye:nightmare",
+      "features": false,
+      "lakes": false
+    }
+  }
+}

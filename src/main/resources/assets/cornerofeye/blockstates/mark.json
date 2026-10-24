@@ -1,0 +1,175 @@
+{
+  "variants": {
+    "facing=north,kind=0": {
+      "model": "cornerofeye:block/mark_scratch"
+    },
+    "facing=north,kind=1": {
+      "model": "cornerofeye:block/mark_hand"
+    },
+    "facing=north,kind=2": {
+      "model": "cornerofeye:block/mark_smear"
+    },
+    "facing=east,kind=0": {
+      "model": "cornerofeye:block/mark_scratch",
+      "y": 90
+    },
+    "facing=east,kind=1": {
+      "model": "cornerofeye:block/mark_hand",
+      "y": 90
+    },
+    "facing=east,kind=2": {
+      "model": "cornerofeye:block/mark_smear",
+      "y": 90
+    },
+    "facing=south,kind=0": {
+      "model": "cornerofeye:block/mark_scratch",
+      "y": 180
+    },
+    "facing=south,kind=1": {
+      "model": "cornerofeye:block/mark_hand",
+      "y": 180
+    },
+    "facing=south,kind=2": {
+      "model": "cornerofeye:block/mark_smear",
+      "y": 180
+    },
+    "facing=west,kind=0": {
+      "model": "cornerofeye:block/mark_scratch",
+      "y": 270
+    },
+    "facing=west,kind=1": {
+      "model": "cornerofeye:block/mark_hand",
+      "y": 270
+    },
+    "facing=west,kind=2": {
+      "model": "cornerofeye:block/mark_smear",
+      "y": 270
+    },
+    "facing=up,kind=0": [
+      {
+        "model": "cornerofeye:block/mark_scratch",
+        "x": 270
+      },
+      {
+        "model": "cornerofeye:block/mark_scratch",
+        "x": 270,
+        "y": 90
+      },
+      {
+        "model": "cornerofeye:block/mark_scratch",
+        "x": 270,
+        "y": 180
+      },
+      {
+        "model": "cornerofeye:block/mark_scratch",
+        "x": 270,
+        "y": 270
+      }
+    ],
+    "facing=up,kind=1": [
+      {
+        "model": "cornerofeye:block/mark_hand",
+        "x": 270
+      },
+      {
+        "model": "cornerofeye:block/mark_hand",
+        "x": 270,
+        "y": 90
+      },
+      {
+        "model": "cornerofeye:block/mark_hand",
+        "x": 270,
+        "y": 180
+      },
+      {
+        "model": "cornerofeye:block/mark_hand",
+        "x": 270,
+        "y": 270
+      }
+    ],
+    "facing=up,kind=2": [
+      {
+        "model": "cornerofeye:block/mark_smear",
+        "x": 270
+      },
+      {
+        "model": "cornerofeye:block/mark_smear",
+        "x": 270,
+        "y": 90
+      },
+      {
+        "model": "cornerofeye:block/mark_smear",
+        "x": 270,
+        "y": 180
+      },
+      {
+        "model": "cornerofeye:block/mark_smear",
+        "x": 270,
+        "y": 270
+      }
+    ],
+    "facing=down,kind=0": [
+      {
+        "model": "cornerofeye:block/mark_scratch",
+        "x": 90
+      },
+      {
+        "model": "cornerofeye:block/mark_scratch",
+        "x": 90,
+        "y": 90
+      },
+      {
+        "model": "cornerofeye:block/mark_scratch",
+        "x": 90,
+        "y": 180
+      },
+      {
+        "model": "cornerofeye:block/mark_scratch",
+        "x": 90,
+        "y": 270
+      }
+    ],
+    "facing=down,kind=1": [
+      {
+        "model": "cornerofeye:block/mark_hand",
+        "x": 90
+      },
+      {
+        "model": "cornerofeye:block/mark_hand",
+        "x": 90,
+        "y": 90
+      },
+      {
+        "model": "cornerofeye:block/mark_hand",
+        "x": 90,
+        "y": 180
+      },
+      {
+        "model": "cornerofeye:block/mark_hand",
+        "x": 90,
+        "y": 270
+      }
+    ],
+    "facing=down,kind=2": [
+      {
+        "model": "cornerofeye:block/mark_smear",
+        "x": 90
+      },
+      {
+        "model": "cornerofeye:block/mark_smear",
+        "x": 90,
+        "y": 90
+      },
+      {
+        "model": "cornerofeye:block/mark_smear",
+        "x": 90,
+        "y": 180
+      },
+      {
+        "model": "cornerofeye:block/mark_smear",
+        "x": 90,
+        "y": 270
+      }
+    ]
+  }
+}

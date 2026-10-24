@@ -1,0 +1,23 @@
+{
+  "parent": "cornerofeye:root",
+  "display": {
+    "icon": {
+      "item": "minecraft:clock"
+    },
+    "title": {
+      "translate": "advancements.cornerofeye.survived.title"
+    },
+    "description": {
+      "translate": "advancements.cornerofeye.survived.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "code": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

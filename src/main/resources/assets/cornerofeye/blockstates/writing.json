@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "cornerofeye:block/writing"
+    },
+    "facing=east": {
+      "model": "cornerofeye:block/writing"
+    },
+    "facing=south": {
+      "model": "cornerofeye:block/writing"
+    },
+    "facing=west": {
+      "model": "cornerofeye:block/writing"
+    }
+  }
+}

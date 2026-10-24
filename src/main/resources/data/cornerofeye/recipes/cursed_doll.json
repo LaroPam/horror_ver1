@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " S ",
+    "WOW",
+    " W "
+  ],
+  "key": {
+    "S": {
+      "item": "minecraft:string"
+    },
+    "W": {
+      "tag": "minecraft:wool"
+    },
+    "O": {
+      "item": "cornerofeye:shadow_scrap"
+    }
+  },
+  "result": {
+    "item": "cornerofeye:cursed_doll"
+  }
+}
