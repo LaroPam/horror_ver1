@@ -45,9 +45,11 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
@@ -76,6 +78,15 @@ public class TheOneEntity extends Monster {
             SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.INT);
     /** Days into the haunt when it appeared: it grows a little every day. */
     private static final EntityDataAccessor<Integer> DATA_DAYS =
+            SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.INT);
+    /**
+     * Burrow.NONE/FORWARD/UP/DOWN/THROUGH in the low 3 bits, whether it listens first in bit 3, and a counter
+     * above them, so each new block restarts the animation.
+     */
+    private static final EntityDataAccessor<Integer> DATA_DIG =
+            SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.INT);
+    /** Ticks the current block takes to break (or to stare, for THROUGH). */
+    private static final EntityDataAccessor<Integer> DATA_DIG_LENGTH =
             SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.INT);
     /** Leans to its own left (true) or right while peeking. */
     private static final EntityDataAccessor<Boolean> DATA_SIDE =
@@ -112,6 +123,18 @@ public class TheOneEntity extends Monster {
     /** Client-side: blocks of room above it, smoothed, so it stoops or goes down on all fours under a low ceiling. */
     private float headroom = 6.0F;
     private float headroomO = 6.0F;
+    /** Client-side: 1 squeezed flat into a one-block space, 0 crawling with its limbs spread; smoothed. */
+    private float prone;
+    private float proneO;
+    /** Client-side: how steeply it is going up (positive) or down a tunnel, in radians; smoothed. */
+    private float climb;
+    private float climbO;
+    private final Burrow burrow = new Burrow(this);
+    /** Has torn its way through something on this hunt: from now on, wherever there is room, it gets up and walks. */
+    private boolean upright;
+    /** Client-side: ticks since the dig state last changed. */
+    private int digAge;
+    private int lastDig;
     /** One of its empty copies on the last night: catching it wastes a scrap. Server side only. */
     private boolean decoy;
     /** Client-side: ticks since the scene step last changed. */
@@ -184,12 +207,14 @@ public class TheOneEntity extends Monster {
         this.entityData.define(DATA_SCENE, Scene.NONE.ordinal());
         this.entityData.define(DATA_ANIM, 0);
         this.entityData.define(DATA_SIDE, false);
+        this.entityData.define(DATA_DIG, 0);
+        this.entityData.define(DATA_DIG_LENGTH, 1);
         this.entityData.define(DATA_STAGE, HauntData.WATCHING);
         this.entityData.define(DATA_DAYS, 0);
     }
 
     /**
-     * Nothing about a visit survives a reload. These keys are only read, for posing it with
+     * Nothing about a visit survives a reload. These keys are only read, for testing and for posing it with
      * {@code /summon cornerofeye:the_one ~ ~ ~ {NoAI:1b,Stage:3,Days:9,Crawling:1b,Phase:"SCENE",Scene:"PEEK",Anim:1}}
      * (trailers, screenshots); the pose keys need NoAI so it doesn't try to act out a scene it doesn't have.
      */
@@ -202,6 +227,14 @@ public class TheOneEntity extends Monster {
         }
         if (tag.contains("Days")) {
             this.entityData.set(DATA_DAYS, Math.max(0, tag.getInt("Days")));
+        }
+        if (!this.isNoAi() && tag.contains("Phase")) {
+            // /summon cornerofeye:the_one ~ ~ ~ {Phase:"HUNT"}: comes for the nearest player right away.
+            for (Phase phase : new Phase[]{Phase.WATCH, Phase.STALK, Phase.HUNT}) {
+                if (phase.name().equalsIgnoreCase(tag.getString("Phase"))) {
+                    this.startPhase(phase);
+                }
+            }
         }
         if (this.isNoAi()) {
             this.setCrawling(tag.getBoolean("Crawling"));
@@ -216,6 +249,10 @@ public class TheOneEntity extends Monster {
                 }
             }
             this.setAnim(tag.getInt("Anim"));
+            if (tag.contains("Dig")) {
+                int dig = Mth.clamp(tag.getInt("Dig"), Burrow.NONE, Burrow.THROUGH);
+                this.setDig(dig, 1, Math.max(Burrow.LISTEN + 1, tag.getInt("DigLength")), dig != Burrow.THROUGH);
+            }
         }
     }
 
@@ -288,7 +325,11 @@ public class TheOneEntity extends Monster {
     }
 
     private void startPhase(Phase phase) {
+        if (this.level() instanceof ServerLevel level) {
+            this.burrow.cancel(level);
+        }
         this.entityData.set(DATA_PHASE, phase.ordinal());
+        this.upright = false;
         this.gazeTicks = 0;
         this.waypoint = null;
         this.setDeltaMovement(Vec3.ZERO);
@@ -319,11 +360,25 @@ public class TheOneEntity extends Monster {
         if (this.level().isClientSide) {
             this.crawlO = this.crawl;
             this.headroomO = this.headroom;
+            int dig = this.entityData.get(DATA_DIG);
+            this.digAge = dig == this.lastDig ? this.digAge + 1 : 0;
+            this.lastDig = dig;
             float room = this.measureHeadroom();
             this.headroom = this.tickCount <= 1 ? room : this.headroom + Mth.clamp(room - this.headroom, -0.3F, 0.3F);
+            // Flat in anything lower than its crawl or narrower than its spread arms; unfolding slowly as it gets out.
+            this.proneO = this.prone;
+            float squeezed = this.fitsToRoom() && (room < 1.5F * this.getVisualScale() || !this.hasRoomToSpread()) ? 1.0F : 0.0F;
+            this.prone = this.tickCount <= 1 ? squeezed : this.prone + Mth.clamp(squeezed - this.prone, -0.06F, 0.12F);
+            this.climbO = this.climb;
+            double rise = this.getY() - this.yo;
+            double run = Math.sqrt((this.getX() - this.xo) * (this.getX() - this.xo) + (this.getZ() - this.zo) * (this.getZ() - this.zo));
+            float slope = rise * rise + run * run > 1.0E-4D ? (float) Mth.clamp(Math.atan2(rise, run), -1.0D, 1.0D) : this.climb * 0.9F;
+            this.climb += (slope - this.climb) * 0.25F;
             float target = this.isCrawling() || this.mustCrawl() ? 1.0F : 0.0F;
             // Unfolding to full height after coming through a door takes its time.
-            float rate = this.getScene() == Scene.DOOR && target < this.crawl ? 0.035F : 0.15F;
+            // Unfolding after crawling out of a hole it dug is just as slow.
+            boolean slowRise = this.getScene() == Scene.DOOR || this.getPhase() == Phase.HUNT;
+            float rate = slowRise && target < this.crawl ? 0.035F : 0.15F;
             if (this.tickCount <= 1) {
                 this.crawl = target;
             }
@@ -337,6 +392,89 @@ public class TheOneEntity extends Monster {
                 this.animTicks++;
             }
         }
+    }
+
+    void setDig(int direction, int sequence, int length, boolean listens) {
+        this.entityData.set(DATA_DIG, direction == Burrow.NONE ? 0 : direction | (listens ? 8 : 0) | (sequence & 0xFFFF) << 4);
+        this.entityData.set(DATA_DIG_LENGTH, Math.max(1, length));
+    }
+
+    /** Burrow.NONE, FORWARD, UP, DOWN, or THROUGH right after breaking a block. */
+    public int getDigDirection() {
+        return this.entityData.get(DATA_DIG) & 7;
+    }
+
+    /** Ticks it spends listening before the current block (none once it is tunnelling). */
+    public int getDigListen() {
+        return (this.entityData.get(DATA_DIG) & 8) != 0 ? Burrow.LISTEN : 0;
+    }
+
+    /** Client side: ticks into the current block. */
+    public float getDigTime(float partialTick) {
+        return this.digAge + partialTick;
+    }
+
+    /** Client side: 0-1 through the current block, after the moment it spends listening. */
+    public float getDigProgress(float partialTick) {
+        int length = this.entityData.get(DATA_DIG_LENGTH);
+        int listen = this.getDigListen();
+        return Mth.clamp((this.getDigTime(partialTick) - listen) / Math.max(1, length - listen), 0.0F, 1.0F);
+    }
+
+    /**
+     * Crawls towards {@code target} by at most {@code maxStep}, tearing through whatever is in the way (or
+     * passing through it, if it isn't allowed to break blocks).
+     *
+     * @return false while it is busy with a block
+     */
+    public boolean crawlTowards(Vec3 target, double maxStep) {
+        Vec3 delta = target.subtract(this.position());
+        double length = delta.length();
+        this.setCrawling(true);
+        if (length < 1.0E-3D) {
+            return true;
+        }
+        Vec3 next = this.position().add(delta.scale(Math.min(maxStep, length) / length));
+        if (this.level() instanceof ServerLevel level && Burrow.allowed(level, this) && !this.burrow.clear(level, next)) {
+            this.setDeltaMovement(Vec3.ZERO);
+            return false;
+        }
+        this.stepTo(next, true);
+        return true;
+    }
+
+    /** Server side: something solid right over it, so it is squeezing through a tunnel or a crawlspace. */
+    private boolean isSqueezed() {
+        BlockPos above = BlockPos.containing(this.position().add(Vec3.directionFromRotation(0.0F, this.getYRot()).scale(0.8D)).add(0.0D, 1.2D, 0.0D));
+        return !this.level().getBlockState(above).getCollisionShape(this.level(), above).isEmpty();
+    }
+
+    /** Called by Burrow when a block gives way: once it has come through, it stands up wherever it can. */
+    void brokeThrough() {
+        this.upright = true;
+    }
+
+    /** Server side: open blocks for its full height, here and a step ahead. */
+    private boolean hasRoomToStand(Vec3 at) {
+        int height = Mth.ceil(2.3F * this.getVisualScale());
+        Vec3 ahead = at.add(Vec3.directionFromRotation(0.0F, this.getYRot()).scale(0.8D));
+        for (Vec3 column : new Vec3[]{at, ahead}) {
+            BlockPos feet = BlockPos.containing(column.x, column.y + 0.05D, column.z);
+            for (int i = 0; i < height; i++) {
+                BlockPos pos = feet.above(i);
+                if (!this.level().getBlockState(pos).getCollisionShape(this.level(), pos).isEmpty()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /** Whether it can get from here to {@code spot} without going through anything solid. */
+    private boolean openPathTo(Vec3 spot) {
+        Vec3 from = this.position().add(0.0D, 0.5D, 0.0D);
+        return this.level().clip(new ClipContext(from, spot.add(0.0D, 0.5D, 0.0D), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this))
+                .getType() == HitResult.Type.MISS;
     }
 
     /** How much taller it gets over the days; the renderer scales the model by this. */
@@ -360,6 +498,37 @@ public class TheOneEntity extends Monster {
         return 6.0F;
     }
 
+    /** Client side: free blocks to both sides of its middle, where its spread arms and knees go. */
+    private boolean hasRoomToSpread() {
+        Vec3 ahead = Vec3.directionFromRotation(0.0F, this.yBodyRot).scale(1.0D * this.getVisualScale());
+        Vec3 side = new Vec3(-ahead.z, 0.0D, ahead.x).normalize();
+        Vec3 middle = this.position().add(ahead).add(0.0D, 0.2D, 0.0D);
+        for (Vec3 at : new Vec3[]{middle.add(side), middle.subtract(side)}) {
+            for (int up = 0; up <= 1; up++) {
+                BlockPos pos = BlockPos.containing(at).above(up);
+                if (!this.level().getBlockState(pos).getCollisionShape(this.level(), pos).isEmpty()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /** 0-1: how squeezed it is, flat on the ground with everything tucked in to fit a one-block tunnel. */
+    public float getProne(float partialTick) {
+        return Mth.lerp(partialTick, this.proneO, this.prone);
+    }
+
+    /** Free height above it, in blocks (the renderer squashes it a little to fit a tunnel). */
+    public float getHeadroom(float partialTick) {
+        return Mth.lerp(partialTick, this.headroomO, this.headroom);
+    }
+
+    /** Radians up (positive) or down along the tunnel it is crawling through. */
+    public float getClimb(float partialTick) {
+        return Mth.lerp(partialTick, this.climbO, this.climb);
+    }
+
     /** Scenes with poses of their own don't fold to fit the room. */
     private boolean fitsToRoom() {
         Scene scene = this.getScene();
@@ -378,15 +547,6 @@ public class TheOneEntity extends Monster {
         }
         float scale = this.getVisualScale();
         return Mth.clamp((3.3F * scale - Mth.lerp(partialTick, this.headroomO, this.headroom)) / scale, 0.0F, 1.0F);
-    }
-
-    /** 0 crawling normally, 1 pressed flat with elbows and knees out to the sides, for crawlspaces. */
-    public float getFlatten(float partialTick) {
-        if (!this.fitsToRoom()) {
-            return 0.0F;
-        }
-        float scale = this.getVisualScale();
-        return Mth.clamp((1.8F * scale - Mth.lerp(partialTick, this.headroomO, this.headroom)) / (0.7F * scale), 0.0F, 1.0F);
     }
 
     public float getCrawlAmount(float partialTick) {
@@ -515,7 +675,7 @@ public class TheOneEntity extends Monster {
             this.holdTicks = 60 + this.random.nextInt(100);
         }
         if (this.waypoint != null && this.position().distanceToSqr(this.waypoint) > 1.0D) {
-            this.driftTowards(this.waypoint, 0.14D, safe);
+            this.driftTowards(this.waypoint, 0.14D, safe, false);
         } else {
             this.setDeltaMovement(Vec3.ZERO);
             this.setCrawling(false);
@@ -534,26 +694,33 @@ public class TheOneEntity extends Monster {
     private void tickHunt(ServerLevel level, ServerPlayer victim) {
         int safe = HorrorConfig.SAFE_LIGHT_LEVEL.get();
         double dist = this.distanceTo(victim);
+        if (this.burrow.isBusy()) {
+            // Head down in the wall: nothing distracts it.
+            this.burrow.clear(level, this.position());
+            this.ambientSounds(victim, 18.0D);
+            return;
+        }
 
         if (this.isGazedAt(level) && this.relocateCooldown == 0) {
             // You can't face it. It is just somewhere else now, and a little closer.
             this.relocateCooldown = 20;
             Vec3 spot = this.findPeripheralSpot(level, victim, Math.max(2.5D, dist * 0.6D), Math.max(4.0D, dist * 0.85D), safe);
-            if (spot != null) {
+            // When it has to dig its way to you, it can't skip a wall by being somewhere else.
+            if (spot != null && (!Burrow.allowed(level, this) || this.openPathTo(spot))) {
                 this.blinkTo(spot);
                 return;
             }
         }
 
         boolean victimInLight = isLit(level, victim, safe);
-        if (dist < 1.8D && !victimInLight) {
+        if (dist < 1.8D && !victimInLight && (!Burrow.allowed(level, this) || this.hasLineOfSight(victim))) {
             this.touch(victim);
             return;
         }
 
         Vec3 target = victim.position();
         double speed = (this.stage >= HauntData.HUNTING ? 0.24D : 0.18D) * (HauntData.get(level.getServer()).isBloodMoon() ? 1.3D : 1.0D);
-        boolean blocked = !this.driftTowards(target, speed, safe);
+        boolean blocked = !this.driftTowards(target, speed, safe, true);
         if (blocked || victimInLight) {
             // Waits at the edge of the light and works on the light instead.
             if (--this.snuffCooldown <= 0) {
@@ -724,6 +891,9 @@ public class TheOneEntity extends Monster {
 
     @Override
     public void remove(RemovalReason reason) {
+        if (this.level() instanceof ServerLevel level) {
+            this.burrow.cancel(level);
+        }
         if (this.level() instanceof ServerLevel level && !this.smothered.isEmpty()) {
             // Gone. What it put out can be lit again now, but nothing comes back on by itself.
             LightSuppression.unlock(level, this.smothered);
@@ -834,12 +1004,19 @@ public class TheOneEntity extends Monster {
     // ------------------------------------------------------------- movement
 
     /** Moves straight at the target, through blocks. Refuses to drift into light. @return false if light is in the way. */
-    private boolean driftTowards(Vec3 target, double speed, int safeLight) {
+    private boolean driftTowards(Vec3 target, double speed, int safeLight, boolean dig) {
         Vec3 delta = target.subtract(this.position());
         double length = delta.length();
         if (length < 0.05D) {
             this.setDeltaMovement(Vec3.ZERO);
             return true;
+        }
+        if (dig && this.isSqueezed()) {
+            // Dragging itself through a tunnel is slow.
+            speed *= 0.45D;
+        } else if (dig && this.upright) {
+            // Upright it doesn't hurry.
+            speed *= 0.7D;
         }
         Vec3 step = delta.scale(Math.min(speed, length) / length);
         Vec3 next = this.position().add(step);
@@ -849,8 +1026,21 @@ public class TheOneEntity extends Monster {
             this.setCrawling(false);
             return false;
         }
+        if (this.level() instanceof ServerLevel level && Burrow.allowed(level, this)) {
+            if (dig && !this.burrow.clear(level, next)) {
+                // Busy tearing at something in the way.
+                this.setDeltaMovement(Vec3.ZERO);
+                this.setCrawling(true);
+                return true;
+            }
+            if (!dig && this.burrow.wouldHit(level, next)) {
+                // It doesn't walk through walls where you might see it: it is simply somewhere else.
+                this.blinkTo(target);
+                return true;
+            }
+        }
         this.setDeltaMovement(step);
-        this.setCrawling(true);
+        this.setCrawling(!(dig && this.upright && this.hasRoomToStand(next)));
         float yaw = yawTowards(this.position(), target);
         this.setYRot(yaw);
         this.setYBodyRot(yaw);

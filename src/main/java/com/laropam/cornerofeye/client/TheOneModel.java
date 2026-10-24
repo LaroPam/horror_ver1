@@ -1,6 +1,7 @@
 package com.laropam.cornerofeye.client;
 
 import com.laropam.cornerofeye.CornerOfTheEye;
+import com.laropam.cornerofeye.entity.Burrow;
 import com.laropam.cornerofeye.entity.Phase;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.entity.scene.PeekScene;
@@ -26,6 +27,7 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
     public static final ModelLayerLocation LAYER = new ModelLayerLocation(CornerOfTheEye.id("the_one"), "main");
 
     private static final float PI = (float) Math.PI;
+    private static final float HALF_PI = PI / 2.0F;
 
     private final ModelPart root;
     private final ModelPart hips;
@@ -215,14 +217,239 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
             default -> {
             }
         }
-        this.fitToRoom(entity, ageInTicks - entity.tickCount, crawl);
+        float partial = ageInTicks - entity.tickCount;
+        this.fitToRoom(entity, partial, crawl);
+        float prone = entity.getProne(partial) * crawl;
+        if (prone > 0.0F) {
+            this.poseProne(prone, limbSwing, limbSwingAmount, ageInTicks, twitch);
+        }
+        if (entity.getDigDirection() != 0) {
+            this.poseDigging(entity, partial, ageInTicks);
+        }
     }
 
     /**
-     * A low ceiling: upright it hunches over, knees bent, back bowed, head pulled down and claws dragging
-     * on the floor; crawling under something lower still it presses itself flat, elbows and knees out
-     * to the sides like a spider.
+     * Squeezed into a one-block tunnel: everything has to fit in it. Flat on its belly, torso level, head
+     * up and facing forward, hind legs dragging straight out behind, and the long arms stretched out ahead
+     * of it, claws hooking into the floor and hauling the rest of it along. Blended in by {@code amount} as
+     * it squeezes in or climbs back out.
      */
+    private void poseProne(float amount, float limbSwing, float limbSwingAmount, float ageInTicks, float twitch) {
+        float moving = Mth.clamp(limbSwingAmount * 1.6F, 0.0F, 1.0F);
+        float gait = limbSwing * 0.55F;
+        float hipsY = 22.0F;
+        float body = HALF_PI + Mth.sin(gait * 2.0F) * 0.04F * moving;
+        this.hips.y = Mth.lerp(amount, this.hips.y, hipsY);
+        this.hips.z = Mth.lerp(amount, this.hips.z, 0.0F);
+        this.body.xRot = Mth.lerp(amount, this.body.xRot, body);
+        this.body.zRot = Mth.lerp(amount, this.body.zRot, 0.0F);
+        this.head.xRot = Mth.lerp(amount, this.head.xRot, -0.1F - body);
+        this.head.zRot = Mth.lerp(amount, this.head.zRot, 0.3F + twitch);
+        this.jaw.xRot = Mth.lerp(amount, this.jaw.xRot, 0.3F + 0.1F * Mth.sin(ageInTicks * 0.2F));
+        // Arms: each hand reaches out along the floor, hooks in, and pulls back while the other reaches.
+        for (int side = 0; side < 2; side++) {
+            float phase = gait + side * PI;
+            float reach = 0.5F + 0.5F * Mth.sin(phase) * moving;
+            boolean lifted = Mth.cos(phase) > 0.0F && moving > 0.1F;
+            float[] arm = this.reachFrom(hipsY, body, Mth.lerp(reach, 40.0F, 46.0F), lifted ? 3.5F : 0.8F);
+            ModelPart upper = side == 0 ? this.rightArm : this.leftArm;
+            ModelPart lower = side == 0 ? this.rightForearm : this.leftForearm;
+            upper.xRot = Mth.lerp(amount, upper.xRot, arm[0] - body);
+            lower.xRot = Mth.lerp(amount, lower.xRot, arm[1] - arm[0]);
+            upper.zRot = Mth.lerp(amount, upper.zRot, side == 0 ? 0.06F : -0.06F);
+            this.curl(lower, Mth.lerp(amount, 0.0F, lifted ? -0.2F : 1.1F));
+        }
+        // Legs straight out behind, one knee drawn up, then the other.
+        for (int side = 0; side < 2; side++) {
+            float push = Math.max(0.0F, Mth.sin(gait + side * PI + 0.8F)) * moving;
+            ModelPart thigh = side == 0 ? this.rightThigh : this.leftThigh;
+            ModelPart shin = side == 0 ? this.rightShin : this.leftShin;
+            float thighAngle = 1.48F - 0.15F * push;
+            thigh.xRot = Mth.lerp(amount, thigh.xRot, thighAngle);
+            thigh.zRot = Mth.lerp(amount, thigh.zRot, 0.0F);
+            shin.xRot = Mth.lerp(amount, shin.xRot, 1.72F + 0.7F * push - thighAngle);
+        }
+    }
+
+    /**
+     * Tearing through a block, close up: the claws work only at the block it is breaking, never through the
+     * walls around it. Positions are in model pixels from its hips (forward, up); the block in front starts
+     * {@link #FACE} pixels ahead, where it stopped.
+     * <ul>
+     *     <li>Forward: hands planted on the face of the block, claws dragged down it hard, one after the other,
+     *     head butting and biting at it. At the very end both arms punch through to the other side.</li>
+     *     <li>Up: it rears its front up into the block over its head and claws at it, head thrown back.</li>
+     *     <li>Down: head down into the hole in front of it, scooping out the block below like a dog.</li>
+     *     <li>Through: it lies still in the hole it made and looks at you, one hand reaching in.</li>
+     * </ul>
+     */
+    private void poseDigging(TheOneEntity entity, float partialTick, float ageInTicks) {
+        int direction = entity.getDigDirection();
+        float time = entity.getDigTime(partialTick);
+        float progress = entity.getDigProgress(partialTick);
+        float blockPx = 16.0F / entity.getVisualScale();
+        float hipsY = this.hips.y;
+        int listen = entity.getDigListen();
+        if (time < listen) {
+            this.poseListening(direction, time, ageInTicks, hipsY, blockPx);
+            return;
+        }
+        time -= listen;
+        // It gets more frantic the longer a block holds out.
+        float period = Mth.lerp(progress, 11.0F, 6.5F);
+        float shiver = Mth.sin(ageInTicks * 3.3F) * 0.03F;
+        float floor = 24.0F - hipsY;
+
+        switch (direction) {
+            case Burrow.FORWARD -> {
+                float body = HALF_PI + shiver;
+                this.body.xRot = body;
+                if (progress > 0.85F) {
+                    // The claws come through to your side first.
+                    float jab = Mth.sin(ageInTicks * 2.6F) * 1.5F;
+                    this.setArm(true, body, this.reachFrom(hipsY, body, FACE + 14.0F + jab, floor - 1.0F + blockPx * 0.5F));
+                    this.setArm(false, body, this.reachFrom(hipsY, body, FACE + 14.0F - jab, floor - 1.0F + blockPx * 0.45F));
+                    this.curl(this.rightForearm, -0.5F);
+                    this.curl(this.leftForearm, -0.5F);
+                } else {
+                    for (int side = 0; side < 2; side++) {
+                        float p = time / period + side * 0.5F;
+                        p -= Mth.floor(p);
+                        // Up to the top of the block, slam in, drag down to the floor, back up.
+                        float height = p < 0.14F ? Mth.lerp(p / 0.14F, 0.35F, 0.85F)
+                                : p < 0.72F ? Mth.lerp((p - 0.14F) / 0.58F, 0.85F, 0.08F)
+                                : Mth.lerp((p - 0.72F) / 0.28F, 0.08F, 0.35F);
+                        float depth = p < 0.14F ? 1.5F : p < 0.72F ? 0.8F : -2.5F;
+                        this.setArm(side == 0, body, this.reachFrom(hipsY, body, FACE + depth, floor - 1.0F + blockPx * height));
+                        this.curl(side == 0 ? this.rightForearm : this.leftForearm, p < 0.72F ? 1.1F : -0.3F);
+                    }
+                    this.hips.z = -0.8F * Mth.abs(Mth.sin(time * PI / period));
+                }
+                this.head.xRot = -0.05F - body;
+                this.head.zRot = 0.3F + Mth.sin(ageInTicks * 1.9F) * 0.15F;
+                this.head.yRot = Mth.sin(ageInTicks * 0.7F) * 0.2F;
+                this.jaw.xRot = 0.15F + 0.7F * Math.abs(Mth.sin(ageInTicks * 1.35F));
+            }
+            case Burrow.UP -> {
+                // Head lifted, the claws driven up into the block over its hands and dragged back down.
+                float body = 1.35F + shiver;
+                this.body.xRot = body;
+                for (int side = 0; side < 2; side++) {
+                    float p = time / period + side * 0.5F;
+                    p -= Mth.floor(p);
+                    float strike = p < 0.18F ? p / 0.18F : 1.0F - (p - 0.18F) / 0.82F;
+                    this.setArm(side == 0, body, this.reachFrom(hipsY, body, FACE - Mth.lerp(strike, 13.0F, 9.0F),
+                            floor + blockPx * Mth.lerp(strike, 0.7F, 1.25F), false));
+                    this.curl(side == 0 ? this.rightForearm : this.leftForearm, Mth.lerp(strike, 0.2F, 1.1F));
+                }
+                this.head.xRot = -0.7F - body;
+                this.head.zRot = 0.35F + Mth.sin(ageInTicks * 1.7F) * 0.15F;
+                this.head.yRot = 0.0F;
+                this.jaw.xRot = 0.85F;
+            }
+            case Burrow.DOWN -> {
+                // Head down, scooping out the block under its hands and ripping it back towards itself.
+                float body = 1.75F + shiver;
+                this.body.xRot = body;
+                for (int side = 0; side < 2; side++) {
+                    float p = time / period + side * 0.5F;
+                    p -= Mth.floor(p);
+                    float back = p < 0.6F ? p / 0.6F : 1.0F - (p - 0.6F) / 0.4F;
+                    this.setArm(side == 0, body, this.reachFrom(hipsY, body, FACE - Mth.lerp(back, 2.0F, 9.0F),
+                            floor - blockPx * Mth.lerp(back, 0.1F, 0.6F)));
+                    this.curl(side == 0 ? this.rightForearm : this.leftForearm, Mth.lerp(back, -0.2F, 1.1F));
+                }
+                this.hips.y += 0.8F * Mth.abs(Mth.sin(time * PI / period));
+                this.head.xRot = 0.9F - body;
+                this.head.zRot = 0.5F + Mth.sin(ageInTicks * 2.2F) * 0.2F;
+                this.head.yRot = 0.0F;
+                this.jaw.xRot = 0.2F + 0.6F * Math.abs(Mth.sin(ageInTicks * 1.6F));
+            }
+            case Burrow.THROUGH -> {
+                // Still. Breathing. Looking at you through the hole, one hand coming in.
+                float t = Mth.clamp(time / 20.0F, 0.0F, 1.0F);
+                float body = this.body.xRot;
+                this.setArm(true, body, this.reachFrom(hipsY, body, FACE + Mth.lerp(t, 0.0F, 12.0F), floor - 1.0F + blockPx * 0.4F));
+                this.curl(this.rightForearm, 0.6F + Mth.sin(ageInTicks * 0.9F) * 0.5F);
+                this.head.zRot = 0.3F + 0.5F * t + Mth.sin(ageInTicks * 4.0F) * 0.04F;
+                this.jaw.xRot = Mth.lerp(t, 0.2F, 1.0F);
+            }
+            default -> {
+            }
+        }
+    }
+
+    /**
+     * The moment before it starts on a block: still, hands flat on it, fingers slowly spreading. Only the
+     * head moves, in small jerks, as if it heard you on the other side.
+     */
+    private void poseListening(int direction, float time, float ageInTicks, float hipsY, float blockPx) {
+        float spread = Mth.clamp(time / Burrow.LISTEN, 0.0F, 1.0F);
+        float jerk = Mth.sin(ageInTicks * 0.31F) > 0.85F ? 0.35F : 0.0F;
+        float floor = 24.0F - hipsY;
+        float body = direction == Burrow.UP ? 1.35F : direction == Burrow.DOWN ? 1.75F : HALF_PI;
+        this.body.xRot = body;
+        float[] hands = switch (direction) {
+            case Burrow.UP -> this.reachFrom(hipsY, body, FACE - 11.0F, floor + blockPx * 0.75F, false);
+            case Burrow.DOWN -> this.reachFrom(hipsY, body, FACE - 4.0F, floor + 0.5F);
+            default -> this.reachFrom(hipsY, body, FACE, floor - 1.0F + blockPx * 0.45F);
+        };
+        this.setArm(true, body, hands);
+        this.setArm(false, body, hands);
+        this.curl(this.rightForearm, 0.8F - 1.2F * spread);
+        this.curl(this.leftForearm, 0.8F - 1.2F * spread);
+        this.head.xRot = (direction == Burrow.UP ? -0.7F : direction == Burrow.DOWN ? 0.9F : -0.05F) - body;
+        this.head.zRot = 0.3F + jerk;
+        this.head.yRot = 0.0F;
+        this.jaw.xRot = 0.05F;
+    }
+
+    /** Where the block it stopped in front of begins, in model pixels ahead of its hips (Burrow.REACH). */
+    private static final float FACE = Burrow.REACH * 16.0F;
+
+    /**
+     * World angles for upper arm and forearm so the wrist lands at {@code forward} pixels ahead of the hips and
+     * {@code up} pixels above the floor, elbow bending upward. The shoulder's place comes from the hips'
+     * height and the body's tilt.
+     */
+    private float[] reachFrom(float hipsY, float body, float forward, float up) {
+        return this.reachFrom(hipsY, body, forward, up, true);
+    }
+
+    /** As above, with the elbow bending up (over the arm) or down (under it, to reach up without hitting the roof). */
+    private float[] reachFrom(float hipsY, float body, float forward, float up, boolean elbowUp) {
+        float shoulderForward = -this.hips.z + 15.0F * Mth.sin(body);
+        float shoulderUp = (24.0F - hipsY) + 15.0F * Mth.cos(body);
+        float f = forward - shoulderForward;
+        float u = up - shoulderUp;
+        float upper = 16.0F;
+        float lower = 16.5F;
+        float distance = Mth.clamp(Mth.sqrt(f * f + u * u), Math.abs(upper - lower) + 0.01F, upper + lower - 0.01F);
+        float base = (float) Mth.atan2(u, f);
+        float bend = (float) Math.acos(Mth.clamp((upper * upper + distance * distance - lower * lower) / (2.0F * upper * distance), -1.0F, 1.0F));
+        float elevation = elbowUp ? base + bend : base - bend;
+        float elbowForward = upper * Mth.cos(elevation);
+        float elbowHeight = upper * Mth.sin(elevation);
+        float lowerElevation = (float) Mth.atan2(u - elbowHeight, f - elbowForward);
+        return new float[]{-HALF_PI - elevation, -HALF_PI - lowerElevation};
+    }
+
+    private void setArm(boolean right, float body, float[] angles) {
+        ModelPart arm = right ? this.rightArm : this.leftArm;
+        ModelPart forearm = right ? this.rightForearm : this.leftForearm;
+        arm.xRot = angles[0] - body;
+        forearm.xRot = angles[1] - angles[0];
+        arm.zRot = right ? 0.06F : -0.06F;
+    }
+
+    /** Fingers hooked down and in (positive) or splayed straight out (negative). */
+    private void curl(ModelPart forearm, float amount) {
+        for (int i = 0; i < 3; i++) {
+            forearm.getChild("finger" + i).xRot = -0.1F + amount;
+        }
+    }
+
+    /** A low ceiling: upright it hunches over, knees bent, back bowed, head pulled down and claws dragging on the floor. */
     private void fitToRoom(TheOneEntity entity, float partialTick, float crawl) {
         float stoop = entity.getStoop(partialTick) * (1.0F - crawl);
         if (stoop > 0.0F) {
@@ -237,16 +464,6 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
             this.leftArm.xRot -= stoop * 0.55F;
             this.rightForearm.xRot -= stoop * 0.7F;
             this.leftForearm.xRot -= stoop * 0.7F;
-        }
-        float flat = entity.getFlatten(partialTick) * crawl;
-        if (flat > 0.0F) {
-            this.hips.y += flat * 3.0F;
-            this.rightArm.zRot += flat * 0.9F;
-            this.leftArm.zRot -= flat * 0.9F;
-            this.rightArm.xRot += flat * 0.6F;
-            this.leftArm.xRot += flat * 0.6F;
-            this.rightThigh.zRot += flat * 0.7F;
-            this.leftThigh.zRot -= flat * 0.7F;
         }
     }
 

@@ -144,5 +144,12 @@
     "sounds": [
       "cornerofeye:warding_bell"
     ]
+  },
+  "claw_scrape": {
+    "subtitle": "subtitles.cornerofeye.claw_scrape",
+    "sounds": [
+      "cornerofeye:claw_scrape1",
+      "cornerofeye:claw_scrape2"
+    ]
   }
 }

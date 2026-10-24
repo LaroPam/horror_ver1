@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.MobRenderer;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 
 import javax.annotation.Nullable;
 
@@ -47,6 +48,11 @@ public class TheOneRenderer extends MobRenderer<TheOneEntity, TheOneModel> {
             poseStack.translate(0.0F, entity.getBbHeight(), 0.0F);
             poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
         }
+        float prone = entity.getProne(partialTicks) * entity.getCrawlAmount(partialTicks);
+        if (prone > 0.0F) {
+            // Squeezed into a tunnel that climbs or drops, it lies along the slope.
+            poseStack.mulPose(Axis.XP.rotation(-entity.getClimb(partialTicks) * prone));
+        }
     }
 
     @Nullable
@@ -74,6 +80,9 @@ public class TheOneRenderer extends MobRenderer<TheOneEntity, TheOneModel> {
     protected void scale(TheOneEntity entity, PoseStack poseStack, float partialTick) {
         // A little taller every day.
         float size = entity.getVisualScale();
-        poseStack.scale(size, size, size);
+        // Flat in a tunnel it is about fifteen pixels tall; where that doesn't fit, it flattens itself to.
+        float prone = entity.getProne(partialTick) * entity.getCrawlAmount(partialTick);
+        float fit = Math.min(1.0F, entity.getHeadroom(partialTick) * 16.0F / (15.0F * size));
+        poseStack.scale(size, size * Mth.lerp(prone, 1.0F, fit), size);
     }
 }

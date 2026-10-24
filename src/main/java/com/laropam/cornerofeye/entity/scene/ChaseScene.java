@@ -10,7 +10,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * It comes out of the dark on all fours, straight at you, through anything in the way.
+ * It comes out of the dark on all fours, straight at you, tearing through anything in the way.
  * Get into the light before it arrives.
  * Steps: 0 coming.
  */
@@ -38,9 +38,9 @@ public final class ChaseScene implements SceneRunner {
 
     @Override
     public void tick(TheOneEntity one, ServerLevel level, ServerPlayer victim, int age) {
-        // Slow at first, then faster and faster.
+        // Slow at first, then faster and faster. Walls hold it up for a moment; then it lunges to make up for it.
         double t = Math.min(1.0D, age / (double) this.length);
-        one.stepTo(this.start.lerp(victim.position(), t * t), true);
+        one.crawlTowards(this.start.lerp(victim.position(), t * t), 0.9D);
         if (age % 10 == 0) {
             HorrorNetwork.playSoundTo(victim, ModSounds.SKITTER.get(), SoundSource.HOSTILE, one.position(), 1.0F, 0.9F + (float) t * 0.4F);
         }

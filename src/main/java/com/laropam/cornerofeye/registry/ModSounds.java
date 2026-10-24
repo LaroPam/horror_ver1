@@ -30,6 +30,7 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> NIGHT_BELL = register("night_bell");
     public static final RegistryObject<SoundEvent> CRACK = register("crack");
     public static final RegistryObject<SoundEvent> WARDING_BELL = register("warding_bell");
+    public static final RegistryObject<SoundEvent> CLAW_SCRAPE = register("claw_scrape");
 
     private static RegistryObject<SoundEvent> register(String name) {
         return SOUNDS.register(name, () -> SoundEvent.createVariableRangeEvent(CornerOfTheEye.id(name)));

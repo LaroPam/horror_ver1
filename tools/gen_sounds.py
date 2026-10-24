@@ -344,6 +344,19 @@ def warding_bell():
     return np.tanh(1.3 * out) * env(len(tt), 0.002, 0.4)
 
 
+def claw_scrape(variant):
+    """Claws dragged hard across stone: grating noise with a fast rasp in it, a knock where they bite in."""
+    length = 0.55
+    tt = t(length)
+    rasp_rate = 38 + variant * 9
+    rasp = 0.55 + 0.45 * np.sign(np.sin(2 * np.pi * rasp_rate * tt + rng.random() * 3))
+    grit = bandpass(noise(length), 900 + variant * 300, 6500) * rasp
+    squeal = np.sin(2 * np.pi * (1400 + 500 * tt + 120 * np.sin(2 * np.pi * 7 * tt)) * tt) * 0.12 * env(len(tt), 0.05, 0.3)
+    knock = bandpass(noise(length), 60, 400) * np.exp(-tt * 40) * 1.4
+    out = (grit * 0.8 + squeal) * env(len(tt), 0.02, 0.25) * np.exp(-tt * 1.5) + knock
+    return np.tanh(1.8 * out)
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     write("the_one_breath1", breath(0), -3)
@@ -368,4 +381,6 @@ if __name__ == "__main__":
     write("night_bell", night_bell(), -2)
     write("crack", crack(), -3)
     write("warding_bell", warding_bell(), -3)
+    write("claw_scrape1", claw_scrape(0), -2)
+    write("claw_scrape2", claw_scrape(1), -2)
     print("sounds written to", os.path.normpath(OUT))
