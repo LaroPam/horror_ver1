@@ -7,6 +7,7 @@ import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntEvent;
 import com.laropam.cornerofeye.haunt.HauntManager;
+import com.laropam.cornerofeye.haunt.Gnawing;
 import com.laropam.cornerofeye.haunt.HomeVisit;
 import com.laropam.cornerofeye.haunt.Nightmares;
 import com.laropam.cornerofeye.haunt.Journal;
@@ -78,6 +79,10 @@ public final class HauntCommand {
                         .executes(ctx -> visit(ctx, ctx.getSource().getPlayerOrException()))
                         .then(Commands.argument("target", EntityArgument.player())
                                 .executes(ctx -> visit(ctx, EntityArgument.getPlayer(ctx, "target")))))
+                .then(Commands.literal("morning")
+                        .executes(ctx -> morning(ctx, ctx.getSource().getPlayerOrException()))
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(ctx -> morning(ctx, EntityArgument.getPlayer(ctx, "target")))))
                 .then(Commands.literal("bloodmoon")
                         .then(Commands.literal("on").executes(ctx -> bloodMoon(ctx, true)))
                         .then(Commands.literal("off").executes(ctx -> bloodMoon(ctx, false))))
@@ -196,6 +201,17 @@ public final class HauntCommand {
             return 0;
         }
         ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.visit", target.getDisplayName()), true);
+        return 1;
+    }
+
+    /** What you may wake up to: cracks and claw marks on the wall by your bed. */
+    private static int morning(CommandContext<CommandSourceStack> ctx, ServerPlayer target) {
+        BlockPos bed = HomeVisit.bedOf(target);
+        if (bed == null || !Gnawing.byTheBed(target.server.overworld(), bed)) {
+            ctx.getSource().sendFailure(Component.translatable("commands.cornerofeye.visit.failed"));
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.morning", target.getDisplayName()), true);
         return 1;
     }
 

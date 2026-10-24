@@ -20,7 +20,8 @@ public enum HauntEvent {
     HANDPRINTS(2, 3, c -> Marks.handprintTrail(c.level(), c.player().position())),
     WRITING(2, 3, c -> Marks.writing(c.level(), c.player().blockPosition(), 5, 14)),
     STARE(2, 3, Animals::stareAtNothing),
-    MIMIC(2, 3, Mimics::appear);
+    MIMIC(2, 3, Mimics::appear),
+    GNAW(2, 5, c -> Gnawing.nearby(c.player()));
 
     public final int minStage;
     private final int weight;

@@ -240,5 +240,6 @@
   "cornerofeye.sign.9.1": "the corner",
   "cornerofeye.sign.9.2": "of your eye",
   "commands.cornerofeye.visit": "It went through %s's home.",
-  "commands.cornerofeye.visit.failed": "No bed to visit, or someone is home."
+  "commands.cornerofeye.visit.failed": "No bed to visit, or someone is home.",
+  "commands.cornerofeye.morning": "It was at the wall by %s's bed."
 }

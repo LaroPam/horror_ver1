@@ -403,6 +403,12 @@ public final class HauntManager {
                 || player.getRandom().nextFloat() > 0.3F) {
             return;
         }
+        BlockPos bed = HomeVisit.bedOf(player);
+        if (bed != null && player.getRandom().nextBoolean()) {
+            // Cracks in the wall by the bed, claw marks over them. It was right here, on the other side.
+            schedule(5, () -> Gnawing.byTheBed(player.serverLevel(), bed));
+            return;
+        }
         schedule(5, () -> {
             ServerLevel level = player.serverLevel();
             for (BlockPos pos : BlockPos.betweenClosed(player.blockPosition().offset(-2, -1, -2), player.blockPosition().offset(2, 1, 2))) {
