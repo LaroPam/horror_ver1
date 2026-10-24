@@ -17,6 +17,7 @@ public final class ClientSetup {
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.THE_ONE.get(), TheOneRenderer::new);
         event.registerEntityRenderer(ModEntities.CORPSE.get(), CorpseRenderer::new);
+        event.registerEntityRenderer(ModEntities.MIMIC.get(), MimicRenderer::new);
         event.registerEntityRenderer(ModEntities.FLARE.get(), context -> new ThrownItemRenderer<>(context, 1.0F, true));
         event.registerBlockEntityRenderer(ModBlocks.WRITING_ENTITY.get(), WritingRenderer::new);
     }

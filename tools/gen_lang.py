@@ -79,6 +79,14 @@ TOOLTIPS = {
     },
 }
 
+# What the mimic says in chat, as whoever it is copying (MimicEntity.SAID_LINES).
+MIMIC_SAID = {
+    "en_us": ["over here", "come here. here. here.", "i found something, come and look", "it's safe here",
+              "why are you so far away", "don't be scared"],
+    "ru_ru": ["я тут", "иди сюда. сюда. сюда.", "я кое-что нашёл, иди посмотри", "здесь безопасно",
+              "почему ты так далеко", "не бойся"],
+}
+
 WHISPERS = {
     "en_us": ["i see you", "don't look at me", "your torches are going out", "it's so dark here",
               "why are you still here", "you are not alone", "i was here before you", "one more night",
@@ -185,6 +193,7 @@ TEXT = {
         "item.cornerofeye.cursed_doll": "Cursed Doll",
         "item.cornerofeye.cursed_doll.tooltip": "She is looking at you.",
         "entity.cornerofeye.flare": "Flare",
+        "entity.cornerofeye.mimic": "Someone",
         "subtitles.cornerofeye.warding_bell": "A little bell rings",
         "cornerofeye.message.doll_back": "The doll is back in your pocket.",
         "cornerofeye.message.doll_crumbled": "The old doll falls apart in your hands. It only wants one of you.",
@@ -299,6 +308,7 @@ TEXT = {
         "item.cornerofeye.cursed_doll": "Проклятая кукла",
         "item.cornerofeye.cursed_doll.tooltip": "Она смотрит на тебя.",
         "entity.cornerofeye.flare": "Сигнальный огонь",
+        "entity.cornerofeye.mimic": "Кто-то",
         "subtitles.cornerofeye.warding_bell": "Звенит колокольчик",
         "cornerofeye.message.doll_back": "Кукла снова у тебя в кармане.",
         "cornerofeye.message.doll_crumbled": "Старая кукла рассыпается в руках. Ей нужна только одна.",
@@ -413,6 +423,8 @@ if __name__ == "__main__":
             data[f"cornerofeye.sleep.{i}"] = line
         for i, line in enumerate(WRITINGS[lang]):
             data[f"cornerofeye.writing.{i}"] = line
+        for i, line in enumerate(MIMIC_SAID[lang]):
+            data[f"cornerofeye.mimic_said.{i}"] = line
         for i, line in enumerate(SPLASHES[lang]):
             data[f"cornerofeye.splash.{i}"] = line
         for i, line in enumerate(GLITCHES[lang]):
@@ -435,6 +447,7 @@ if __name__ == "__main__":
     # MenuHaunt.SPLASHES, GLITCHES and WHISPERS; the torch and lantern lists are fixed at 3.
     assert len(SPLASHES["en_us"]) == len(SPLASHES["ru_ru"]) == 10
     assert len(GLITCHES["en_us"]) == len(GLITCHES["ru_ru"]) == 8
+    assert len(MIMIC_SAID["en_us"]) == len(MIMIC_SAID["ru_ru"]) == 6
     for lang in TOOLTIPS:
         assert [len(v) for v in TOOLTIPS[lang].values()] == [8, 3, 3]
     print([len(s) for s in SIGNS["en_us"]])
