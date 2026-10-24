@@ -25,6 +25,26 @@ public final class HorrorConfig {
             .defineInRange("eventFrequency", 1.0D, 0.05D, 20.0D);
 
     static {
+        BUILDER.pop().comment("Scripted scary moments: the door, the tree, the countdowns, the village.").push("moments");
+    }
+
+    public static final ForgeConfigSpec.IntValue MINUTES_BETWEEN_MOMENTS_WATCHING = BUILDER
+            .comment("Average minutes of play between moments in stage 1 (only the quiet ones: the tree, the ceiling).")
+            .defineInRange("minutesBetweenMomentsWatching", 25, 1, 1000);
+    public static final ForgeConfigSpec.IntValue MINUTES_BETWEEN_MOMENTS_APPROACHING = BUILDER
+            .comment("Average minutes of play between moments in stage 2.")
+            .defineInRange("minutesBetweenMomentsApproaching", 15, 1, 1000);
+    public static final ForgeConfigSpec.IntValue MINUTES_BETWEEN_MOMENTS_HUNTING = BUILDER
+            .comment("Average minutes of play between moments in stage 3.")
+            .defineInRange("minutesBetweenMomentsHunting", 8, 1, 1000);
+    public static final ForgeConfigSpec.BooleanValue VILLAGE_MASSACRE = BUILDER
+            .comment("Allow the rare night when it goes through a village while you aren't looking. Villagers die for real.")
+            .define("villageMassacre", true);
+    public static final ForgeConfigSpec.IntValue DAYS_BETWEEN_MASSACRES = BUILDER
+            .comment("Minimum days between two village massacres.")
+            .defineInRange("daysBetweenMassacres", 3, 0, 1000);
+
+    static {
         BUILDER.pop().push("monster");
     }
 

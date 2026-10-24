@@ -7,6 +7,7 @@ import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntEvent;
 import com.laropam.cornerofeye.haunt.HauntManager;
+import com.laropam.cornerofeye.haunt.Journal;
 import com.laropam.cornerofeye.haunt.Moments;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -129,7 +130,7 @@ public final class HauntCommand {
             existing.discard();
         }
         int stage = Math.max(scene.minStage, data(ctx).getStage());
-        if (Moments.start(target, stage, scene) == null) {
+        if (Moments.start(target, stage, scene, true) == null) {
             ctx.getSource().sendFailure(Component.translatable("commands.cornerofeye.moment.failed", name));
             return 0;
         }
@@ -156,6 +157,7 @@ public final class HauntCommand {
 
     private static int reset(CommandContext<CommandSourceStack> ctx) {
         data(ctx).reset();
+        ctx.getSource().getServer().getPlayerList().getPlayers().forEach(Journal::reset);
         TheOneEntity existing = HauntManager.findTheOne(ctx.getSource().getServer().overworld());
         if (existing != null) {
             existing.discard();

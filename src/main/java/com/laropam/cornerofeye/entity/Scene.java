@@ -14,7 +14,15 @@ public enum Scene {
     /** Every light around you dies at once and it walks out of the dark. */
     LIGHTS_OUT(2),
     /** Circles you on all fours, sniffing. */
-    STILL(2);
+    STILL(2),
+    /** In a cave: lowers itself head first out of the ceiling above you. */
+    CEILING(1),
+    /** Rises out of the deep water under you, arms up. */
+    UNDERWATER(2),
+    /** Goes through a village in the dark while you aren't looking. Never seen. Then comes for you. */
+    MASSACRE(2),
+    /** Comes for you on all fours out of the dark, fast. */
+    CHASE(3);
 
     /** Stage at which the haunt starts using this moment on its own. */
     public final int minStage;

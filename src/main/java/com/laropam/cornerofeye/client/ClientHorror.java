@@ -6,6 +6,7 @@ import com.laropam.cornerofeye.entity.Challenge;
 import com.laropam.cornerofeye.entity.Phase;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.HauntData;
+import com.laropam.cornerofeye.haunt.LightSuppression;
 import com.laropam.cornerofeye.network.HorrorPacket;
 import com.laropam.cornerofeye.registry.ModSounds;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -28,6 +29,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FogType;
@@ -51,6 +53,7 @@ import java.util.Locale;
 @Mod.EventBusSubscriber(modid = CornerOfTheEye.MODID, value = Dist.CLIENT)
 public final class ClientHorror {
     private static final ResourceLocation JUMPSCARE = CornerOfTheEye.id("textures/gui/jumpscare.png");
+    private static final ResourceLocation JUMPSCARE_LATE = CornerOfTheEye.id("textures/gui/jumpscare_late.png");
     private static final ResourceLocation VIGNETTE = CornerOfTheEye.id("textures/gui/dread_vignette.png");
     private static final RandomSource RANDOM = RandomSource.create();
 
@@ -90,6 +93,7 @@ public final class ClientHorror {
     private static int challengeType = -1;
     private static int challengeTicks;
     private static int challengeLength = 1;
+    private static int challengeLightNeeded;
 
     // ------------------------------------------------------------- packets
 
@@ -126,11 +130,20 @@ public final class ClientHorror {
             case CHALLENGE -> {
                 challengeType = msg.data();
                 challengeLength = Math.max(1, msg.pos().getX());
+                challengeLightNeeded = msg.pos().getY();
                 challengeTicks = challengeLength;
                 dreadSpike = Math.min(1.0F, dreadSpike + 0.5F);
                 minecraft.getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.GLIMPSE.get(), 0.8F, 0.8F));
             }
             case CHALLENGE_END -> challengeType = -1;
+            case SMOTHER -> {
+                if (LightSuppression.clientUpdate(msg.pos(), msg.data()) && minecraft.level != null) {
+                    BlockPos pos = msg.pos();
+                    minecraft.level.getChunkSource().getLightEngine().checkBlock(pos);
+                    // Redraw it (and its neighbours' faces) without its own glow.
+                    minecraft.levelRenderer.setBlocksDirty(pos.getX() - 1, pos.getY() - 1, pos.getZ() - 1, pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1);
+                }
+            }
         }
     }
 
@@ -348,6 +361,12 @@ public final class ClientHorror {
     }
 
     @SubscribeEvent
+    public static void onRespawnOrTravel(ClientPlayerNetworkEvent.Clone event) {
+        // A new world on our side; the server sends the dark spots of the new one.
+        LightSuppression.clientUpdate(BlockPos.ZERO, 2);
+    }
+
+    @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         stage = 0;
         stepsLeft = 0;
@@ -361,6 +380,7 @@ public final class ClientHorror {
         fog = fogO = 0.0F;
         lastGlimpsedId = -1;
         dreadLoop = null;
+        LightSuppression.clientUpdate(BlockPos.ZERO, 2);
     }
 
     // ---------------------------------------------------------- viewport
@@ -463,7 +483,8 @@ public final class ClientHorror {
         int shake = (int) ((1.0F - progress) * 14.0F) + 1;
         int x = (width - size) / 2 + RANDOM.nextInt(shake * 2 + 1) - shake;
         int y = (height - size) / 2 + RANDOM.nextInt(shake * 2 + 1) - shake;
-        graphics.blit(JUMPSCARE, x, y, size, size, 0.0F, 0.0F, 64, 64, 64, 64);
+        graphics.blit(stage >= HauntData.HUNTING && stage != HorrorPacket.DEFEATED ? JUMPSCARE_LATE : JUMPSCARE,
+                x, y, size, size, 0.0F, 0.0F, 64, 64, 64, 64);
         if (progress < 0.2F) {
             graphics.fill(0, 0, width, height, 0x66FF0000);
         }
@@ -502,6 +523,19 @@ public final class ClientHorror {
         float left = Mth.clamp((challengeTicks - partialTick) / challengeLength, 0.0F, 1.0F);
         graphics.fill(x0 - 1, y0 - 1, x0 + barWidth + 1, y0 + 4, 0x90000000);
         graphics.fill(x0, y0, x0 + (int) (barWidth * left), y0 + 3, urgent ? 0xFFD42020 : 0xFFE6E6E6);
+
+        if ((type == Challenge.LIGHT_RUN || type == Challenge.LIGHT_PLACE) && challengeLightNeeded > 0) {
+            // How much light is on you right now. A furnace across the room is not enough.
+            Minecraft minecraft = Minecraft.getInstance();
+            int light = 0;
+            if (minecraft.level != null && minecraft.player != null) {
+                light = Math.max(minecraft.level.getBrightness(LightLayer.BLOCK, minecraft.player.blockPosition()),
+                        minecraft.level.getBrightness(LightLayer.BLOCK, BlockPos.containing(minecraft.player.getEyePosition())));
+            }
+            boolean enough = light >= challengeLightNeeded;
+            graphics.drawCenteredString(font, Component.translatable("cornerofeye.challenge.light_meter", light, challengeLightNeeded),
+                    width / 2, y0 + 8, enough ? 0xFFE9B0 : 0x9A9A9A);
+        }
     }
 
     private ClientHorror() {

@@ -4,6 +4,10 @@ import com.laropam.cornerofeye.HorrorConfig;
 import com.laropam.cornerofeye.entity.Scene;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.entity.scene.BehindScene;
+import com.laropam.cornerofeye.entity.scene.CeilingScene;
+import com.laropam.cornerofeye.entity.scene.ChaseScene;
+import com.laropam.cornerofeye.entity.scene.MassacreScene;
+import com.laropam.cornerofeye.entity.scene.UnderwaterScene;
 import com.laropam.cornerofeye.entity.scene.DoorScene;
 import com.laropam.cornerofeye.entity.scene.LightsOutScene;
 import com.laropam.cornerofeye.entity.scene.PeekScene;
@@ -13,9 +17,12 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -39,7 +46,7 @@ public final class Moments {
         }
         Collections.shuffle(scenes, new java.util.Random(victim.getRandom().nextLong()));
         for (Scene scene : scenes) {
-            TheOneEntity one = start(victim, stage, scene);
+            TheOneEntity one = start(victim, stage, scene, false);
             if (one != null) {
                 return one;
             }
@@ -47,10 +54,13 @@ public final class Moments {
         return null;
     }
 
-    /** @return null if the surroundings don't allow this moment right now */
+    /**
+     * @param forced started by a command: skip the dice roll on the rare ones
+     * @return null if the surroundings don't allow this moment right now
+     */
     @Nullable
-    public static TheOneEntity start(ServerPlayer victim, int stage, Scene scene) {
-        if (victim.isPassenger() || victim.isInWater() || victim.getAbilities().flying) {
+    public static TheOneEntity start(ServerPlayer victim, int stage, Scene scene, boolean forced) {
+        if (victim.isPassenger() || victim.getAbilities().flying || (victim.isInWater() && scene != Scene.UNDERWATER)) {
             return null;
         }
         ServerLevel level = victim.serverLevel();
@@ -60,6 +70,10 @@ public final class Moments {
             case BEHIND -> behind(level, victim, stage);
             case LIGHTS_OUT -> lightsOut(level, victim, stage);
             case STILL -> still(level, victim, stage);
+            case CEILING -> ceiling(level, victim, stage);
+            case UNDERWATER -> underwater(level, victim, stage);
+            case MASSACRE -> massacre(level, victim, stage, forced);
+            case CHASE -> chase(level, victim, stage);
             case NONE -> null;
         };
     }
@@ -148,7 +162,7 @@ public final class Moments {
         if (!HorrorConfig.ALLOW_BLOCK_CHANGES.get() || !TheOneEntity.isLit(level, victim, safe) || !carriesLight(victim)) {
             return null;
         }
-        List<BlockPos> lights = Lights.findAll(level, victim.blockPosition(), 10, 4);
+        List<BlockPos> lights = Lights.findAll(level, victim.blockPosition(), 10, 4, true);
         if (lights.size() < 2) {
             return null;
         }
@@ -192,6 +206,109 @@ public final class Moments {
         Vec3 center = victim.position();
         Vec3 start = center.add(Math.cos(angle) * 7.0D, 0.0D, Math.sin(angle) * 7.0D);
         return TheOneEntity.spawnForScene(level, victim, start, stage, Scene.STILL, new StillScene(center, angle, random.nextBoolean()));
+    }
+
+    // ------------------------------------------------------------------ ceiling
+
+    @Nullable
+    private static TheOneEntity ceiling(ServerLevel level, ServerPlayer victim, int stage) {
+        BlockPos eyes = BlockPos.containing(victim.getEyePosition());
+        if (level.getBrightness(LightLayer.SKY, eyes) >= 4) {
+            return null;
+        }
+        RandomSource random = victim.getRandom();
+        for (int attempt = 0; attempt < 40; attempt++) {
+            double yaw = Math.toRadians(victim.getYRot() + (random.nextFloat() * 2.0F - 1.0F) * 35.0F);
+            double dist = 4.0D + random.nextDouble() * 6.0D;
+            BlockPos column = BlockPos.containing(victim.getX() - Math.sin(yaw) * dist, victim.getY(), victim.getZ() + Math.cos(yaw) * dist);
+            BlockPos floor = null;
+            for (int dy = 0; dy <= 6 && floor == null; dy = dy <= 0 ? 1 - dy : -dy) {
+                BlockPos pos = column.above(dy);
+                if (level.getBlockState(pos).isAir() && level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP)) {
+                    floor = pos;
+                }
+            }
+            if (floor == null) {
+                continue;
+            }
+            int gap = 1;
+            while (gap <= 9 && level.getBlockState(floor.above(gap)).isAir()) {
+                gap++;
+            }
+            BlockPos roof = floor.above(gap);
+            if (gap < 3 || gap > 9 || !level.getBlockState(roof).isSolidRender(level, roof)) {
+                continue;
+            }
+            Vec3 hangPoint = new Vec3(floor.getX() + 0.5D, roof.getY() - 1.0D, floor.getZ() + 0.5D);
+            if (!Sight.clearLine(level, victim, hangPoint)) {
+                continue;
+            }
+            return TheOneEntity.spawnForScene(level, victim, new Vec3(hangPoint.x, roof.getY(), hangPoint.z), stage, Scene.CEILING,
+                    new CeilingScene(roof.getY()));
+        }
+        return null;
+    }
+
+    // --------------------------------------------------------------- underwater
+
+    @Nullable
+    private static TheOneEntity underwater(ServerLevel level, ServerPlayer victim, int stage) {
+        if (!victim.isInWater()) {
+            return null;
+        }
+        BlockPos feet = victim.blockPosition();
+        int depth = 0;
+        while (depth < 12 && level.getFluidState(feet.below(depth + 1)).is(FluidTags.WATER)) {
+            depth++;
+        }
+        if (depth < 3) {
+            return null;
+        }
+        // Below you and a little ahead, where you'd see it if you looked down.
+        Vec3 ahead = victim.getViewVector(1.0F).multiply(1.0D, 0.0D, 1.0D).normalize().scale(1.5D);
+        Vec3 start = victim.position().add(ahead).subtract(0.0D, Math.min(depth, 8) + 2.0D, 0.0D);
+        return TheOneEntity.spawnForScene(level, victim, start, stage, Scene.UNDERWATER, new UnderwaterScene());
+    }
+
+    // ----------------------------------------------------------------- massacre
+
+    @Nullable
+    private static TheOneEntity massacre(ServerLevel level, ServerPlayer victim, int stage, boolean forced) {
+        HauntData data = HauntData.get(level.getServer());
+        if (!HorrorConfig.VILLAGE_MASSACRE.get() || (!forced && data.getTicks() < data.getNextMassacre())) {
+            return null;
+        }
+        List<Villager> villagers = level.getEntitiesOfClass(Villager.class, victim.getBoundingBox().inflate(48.0D, 16.0D, 48.0D));
+        if (villagers.size() < 3) {
+            return null;
+        }
+        if (!forced && victim.getRandom().nextFloat() > (stage >= HauntData.HUNTING ? 0.6F : 0.35F)) {
+            return null;
+        }
+        Vec3 center = Vec3.ZERO;
+        for (Villager villager : villagers) {
+            center = center.add(villager.position());
+        }
+        center = center.scale(1.0D / villagers.size());
+        BlockPos ground = SpotFinder.findGround(level, BlockPos.containing(center), 8);
+        Vec3 spot = ground != null ? Vec3.atBottomCenterOf(ground) : center;
+        data.setNextMassacre(data.getTicks() + HorrorConfig.DAYS_BETWEEN_MASSACRES.get() * 24000L);
+        return TheOneEntity.spawnForScene(level, victim, spot, stage, Scene.MASSACRE,
+                new MassacreScene(MassacreScene.targetsAround(level, center), Lights.findAll(level, BlockPos.containing(center), 32, 8, true)));
+    }
+
+    // -------------------------------------------------------------------- chase
+
+    @Nullable
+    private static TheOneEntity chase(ServerLevel level, ServerPlayer victim, int stage) {
+        int safe = HorrorConfig.SAFE_LIGHT_LEVEL.get();
+        // Out of the dark ahead of you, so you see it coming.
+        Vec3 spot = SpotFinder.find(level, victim, 18.0D, 26.0D, 15.0F, 25.0F, 8, 24,
+                pos -> SpotFinder.isDark(level, pos, safe) && Sight.clearLine(level, victim, pos.add(0.0D, 1.0D, 0.0D)));
+        if (spot == null) {
+            return null;
+        }
+        return TheOneEntity.spawnForScene(level, victim, spot, stage, Scene.CHASE, new ChaseScene(ChaseScene.defaultLength(stage)));
     }
 
     private Moments() {

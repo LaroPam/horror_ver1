@@ -29,7 +29,9 @@ public record HorrorPacket(Type type, BlockPos pos, int data) {
         /** A countdown appears: data = {@link com.laropam.cornerofeye.entity.Challenge} id, pos.x = length in ticks. */
         CHALLENGE,
         /** The countdown is over: data = 1 survived, 0 failed, 2 cancelled. */
-        CHALLENGE_END
+        CHALLENGE_END,
+        /** A light it put out (data = 1), lit again (0), or forget them all (2). */
+        SMOTHER
     }
 
     public static final int DEFEATED = 99;

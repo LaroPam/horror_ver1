@@ -39,7 +39,7 @@ final class HauntEvents {
         }
         BlockPos center = c.player().blockPosition();
         double minDist = c.stage() == HauntData.SILENCE ? 16.0D : 10.0D;
-        List<BlockPos> lights = Lights.findHidden(c.level(), center, 24, 8);
+        List<BlockPos> lights = Lights.findHidden(c.level(), center, 24, 8, false);
         lights.removeIf(pos -> pos.distSqr(center) < minDist * minDist);
         if (lights.isEmpty()) {
             return false;
@@ -114,7 +114,7 @@ final class HauntEvents {
         if (!HorrorConfig.ALLOW_BLOCK_CHANGES.get()) {
             return false;
         }
-        List<BlockPos> lights = Lights.findHidden(c.level(), c.player().blockPosition(), 12, 5);
+        List<BlockPos> lights = Lights.findHidden(c.level(), c.player().blockPosition(), 12, 5, false);
         if (lights.isEmpty()) {
             return false;
         }

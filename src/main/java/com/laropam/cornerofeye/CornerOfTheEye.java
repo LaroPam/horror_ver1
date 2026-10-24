@@ -1,6 +1,7 @@
 package com.laropam.cornerofeye;
 
 import com.laropam.cornerofeye.network.HorrorNetwork;
+import com.laropam.cornerofeye.registry.ModBlocks;
 import com.laropam.cornerofeye.registry.ModEntities;
 import com.laropam.cornerofeye.registry.ModItems;
 import com.laropam.cornerofeye.registry.ModSounds;
@@ -24,6 +25,7 @@ public class CornerOfTheEye {
     public CornerOfTheEye() {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
 
+        ModBlocks.BLOCKS.register(modBus);
         ModEntities.ENTITIES.register(modBus);
         ModItems.ITEMS.register(modBus);
         ModSounds.SOUNDS.register(modBus);
@@ -47,6 +49,8 @@ public class CornerOfTheEye {
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.INGREDIENTS) {
             event.accept(ModItems.SHADOW_SCRAP);
+        } else if (event.getTabKey() == CreativeModeTabs.FUNCTIONAL_BLOCKS) {
+            event.accept(ModItems.UNLIT_TORCH);
         } else if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(ModItems.LANTERN_OF_REVELATION);
         } else if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) {

@@ -22,6 +22,8 @@ public class HauntData extends SavedData {
     private int wounds;
     private boolean banished;
     private long nextAppearance;
+    private long nextMoment = -1;
+    private long nextMassacre;
 
     public static HauntData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(HauntData::load, HauntData::new, NAME);
@@ -34,6 +36,8 @@ public class HauntData extends SavedData {
         data.wounds = tag.getInt("Wounds");
         data.banished = tag.getBoolean("Banished");
         data.nextAppearance = tag.getLong("NextAppearance");
+        data.nextMoment = tag.contains("NextMoment") ? tag.getLong("NextMoment") : -1;
+        data.nextMassacre = tag.getLong("NextMassacre");
         return data;
     }
 
@@ -44,6 +48,8 @@ public class HauntData extends SavedData {
         tag.putInt("Wounds", this.wounds);
         tag.putBoolean("Banished", this.banished);
         tag.putLong("NextAppearance", this.nextAppearance);
+        tag.putLong("NextMoment", this.nextMoment);
+        tag.putLong("NextMassacre", this.nextMassacre);
         return tag;
     }
 
@@ -117,12 +123,33 @@ public class HauntData extends SavedData {
         this.setDirty();
     }
 
+    /** Earliest haunt tick for the next scripted moment; -1 until the first one is scheduled. */
+    public long getNextMoment() {
+        return this.nextMoment;
+    }
+
+    public void setNextMoment(long tick) {
+        this.nextMoment = tick;
+        this.setDirty();
+    }
+
+    public long getNextMassacre() {
+        return this.nextMassacre;
+    }
+
+    public void setNextMassacre(long tick) {
+        this.nextMassacre = tick;
+        this.setDirty();
+    }
+
     public void reset() {
         this.ticks = 0;
         this.stageOverride = -1;
         this.wounds = 0;
         this.banished = false;
         this.nextAppearance = 0;
+        this.nextMoment = -1;
+        this.nextMassacre = 0;
         this.setDirty();
     }
 }

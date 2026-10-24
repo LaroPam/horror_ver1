@@ -1,6 +1,7 @@
 package com.laropam.cornerofeye.registry;
 
 import com.laropam.cornerofeye.CornerOfTheEye;
+import com.laropam.cornerofeye.entity.CorpseEntity;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -21,6 +22,13 @@ public final class ModEntities {
                     .clientTrackingRange(10)
                     .updateInterval(1)
                     .build("the_one"));
+
+    public static final RegistryObject<EntityType<CorpseEntity>> CORPSE = ENTITIES.register("corpse",
+            () -> EntityType.Builder.<CorpseEntity>of(CorpseEntity::new, MobCategory.MISC)
+                    .sized(1.0F, 0.4F)
+                    .fireImmune()
+                    .clientTrackingRange(8)
+                    .build("corpse"));
 
     public static void registerAttributes(EntityAttributeCreationEvent event) {
         event.put(THE_ONE.get(), TheOneEntity.createAttributes().build());

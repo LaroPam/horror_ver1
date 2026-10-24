@@ -47,12 +47,9 @@ public final class HauntManager {
         LOST, DAYLIGHT, TIMEOUT, APPROACHED, SCARED, SURVIVED, TOUCHED, WOUNDED
     }
 
-    private static final String JOURNAL_TAG = CornerOfTheEye.MODID + ".journal";
-
     private static final Map<UUID, PlayerState> STATES = new HashMap<>();
     private static final List<Task> TASKS = new ArrayList<>();
     private static int lastStage = -1;
-    private static long nextMomentTick = 2400;
 
     private static final class PlayerState {
         int eventCooldown = 1200 + (int) (Math.random() * 1200);
@@ -99,7 +96,7 @@ public final class HauntManager {
             if (player.isSpectator() || !player.isAlive()) {
                 continue;
             }
-            maybeGiveJournal(player, stage);
+            Journal.tick(player, data, stage);
             tickEvents(player, stage);
         }
         directTheOne(server, data, stage);
@@ -142,22 +139,6 @@ public final class HauntManager {
             }
         }
         lastStage = stage;
-    }
-
-    private static void maybeGiveJournal(ServerPlayer player, int stage) {
-        if (stage < HauntData.WATCHING || !HorrorConfig.GIVE_JOURNAL.get()) {
-            return;
-        }
-        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
-        if (persisted.getBoolean(JOURNAL_TAG)) {
-            return;
-        }
-        persisted.putBoolean(JOURNAL_TAG, true);
-        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
-        if (!player.getInventory().add(Journal.create())) {
-            player.drop(Journal.create(), false);
-        }
-        player.sendSystemMessage(Component.translatable("cornerofeye.message.journal").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
     }
 
     private static void tickEvents(ServerPlayer player, int stage) {
@@ -207,13 +188,24 @@ public final class HauntManager {
         if (victim == null) {
             return;
         }
-        // Sometimes, instead of just watching, it stages one of its moments.
-        float momentChance = stage >= HauntData.HUNTING ? 0.5F : stage == HauntData.APPROACHING ? 0.4F : 0.3F;
-        if (serverTicks >= nextMomentTick && random.nextFloat() < momentChance && Moments.startRandom(victim, stage) != null) {
-            nextMomentTick = serverTicks + 4800 + random.nextInt(3600);
+        // Every so often, instead of just watching, it stages one of its moments. More often the further it gets.
+        if (data.getNextMoment() < 0) {
+            data.setNextMoment(data.getTicks() + momentInterval(stage, random));
+        } else if (data.getTicks() >= data.getNextMoment() && Moments.startRandom(victim, stage) != null) {
+            data.setNextMoment(data.getTicks() + momentInterval(stage, random));
             return;
         }
         appear(victim, stage, Phase.WATCH);
+    }
+
+    /** Ticks until the next moment: the configured average for this stage, give or take a quarter. */
+    private static long momentInterval(int stage, RandomSource random) {
+        int minutes = switch (stage) {
+            case HauntData.WATCHING -> HorrorConfig.MINUTES_BETWEEN_MOMENTS_WATCHING.get();
+            case HauntData.APPROACHING -> HorrorConfig.MINUTES_BETWEEN_MOMENTS_APPROACHING.get();
+            default -> HorrorConfig.MINUTES_BETWEEN_MOMENTS_HUNTING.get();
+        };
+        return (long) (minutes * 1200L * (0.75D + random.nextDouble() * 0.5D));
     }
 
     /** It prefers whoever is alone in the dark. */
@@ -388,7 +380,6 @@ public final class HauntManager {
         STATES.clear();
         TASKS.clear();
         lastStage = -1;
-        nextMomentTick = 2400;
     }
 
     /** Runs one event right now, for commands. */

@@ -90,14 +90,19 @@ public final class DoorScene implements SceneRunner {
         this.challengeStart = one.position();
         this.challengeLength = one.getStage() >= HauntData.HUNTING ? 120 : 160;
         this.challengeAge = 0;
+        startLightChallenge(one, level, victim, this.challengeLength);
+    }
+
+    /** "Get into the light", or, if you are already in it, put it out first and make it "light something". */
+    static void startLightChallenge(TheOneEntity one, ServerLevel level, ServerPlayer victim, int length) {
         Challenge challenge = Challenge.LIGHT_RUN;
         if (TheOneEntity.isLit(level, victim, HorrorConfig.SAFE_LIGHT_LEVEL.get()) && HorrorConfig.ALLOW_BLOCK_CHANGES.get()) {
             // You were standing in the light. Not anymore.
-            for (BlockPos light : Lights.findAll(level, victim.blockPosition(), 9, 4)) {
-                Lights.snuff(level, light);
+            for (BlockPos light : Lights.findAll(level, victim.blockPosition(), 9, 4, true)) {
+                Lights.smother(level, light, one);
             }
             challenge = Challenge.LIGHT_PLACE;
         }
-        one.startChallenge(victim, challenge, this.challengeLength);
+        one.startChallenge(victim, challenge, length);
     }
 }

@@ -72,7 +72,16 @@ class Painter:
                 self.px(x0 + x, y0 + y, jitter(c, 7))
 
 
-def paint_entity():
+VEIN_BLACK = (30, 28, 40)
+DRIED_BLOOD = (70, 10, 12)
+FLESH = (110, 18, 22)
+RED_EYE = (255, 40, 30)
+
+
+def paint_entity(stage):
+    """Stage 1 is how it looks at first. Every later stage paints more on top of the same base."""
+    global rng
+    rng = random.Random(1337)
     img = Image.new("RGBA", (128, 64), (0, 0, 0, 0))
     glow = Image.new("RGBA", (128, 64), (0, 0, 0, 0))
     p = Painter(img, glow)
@@ -212,11 +221,72 @@ def paint_entity():
                 c = SKIN_SHADE if y < 3 else SKIN_DEEP if y < 5 else NAIL
                 p.px(x0 + x, y0 + y, jitter(c, 4), glow=None if y < 5 else (0, 0, 0))
 
-    img.save(os.path.join(ROOT, "entity", "the_one.png"))
-    glow.save(os.path.join(ROOT, "entity", "the_one_glow.png"))
+    if stage >= 2:
+        decay(p, head, torso, stage)
+
+    img.save(os.path.join(ROOT, "entity", "the_one_stage%d.png" % stage))
+    glow.save(os.path.join(ROOT, "entity", "the_one_glow_stage%d.png" % stage))
 
 
-def paint_jumpscare():
+def is_skin(color):
+    r, g, b = color[:3]
+    return color[3] > 0 and r > 90 and abs(r - g) < 40 and abs(r - b) < 50
+
+
+def decay(p, head, torso, stage):
+    """Stage 2: black veins crawling over the skin, dried blood round the mouth, longer black nails.
+    Stage 3: the skin splits open, more eyes, everything red, eyes burning."""
+    img = p.img
+    w, h = img.size
+    regions = [torso["front"], torso["back"], torso["right"], torso["left"], head["right"], head["left"]]
+    for (u, v) in [(52, 0), (64, 0), (76, 0), (88, 0), (100, 0), (108, 0), (116, 0), (100, 20)]:
+        regions.append((u, v + 2, 12 if u < 100 else 8, 14 if u < 100 else 19))
+    # Veins: short random walks over pale skin.
+    for _ in range(26 if stage == 2 else 40):
+        x0, y0, rw, rh = regions[rng.randrange(len(regions))]
+        x, y = x0 + rng.randrange(rw), y0 + rng.randrange(rh)
+        for _ in range(rng.randint(3, 7)):
+            if 0 <= x < w and 0 <= y < h and is_skin(img.getpixel((x, y))):
+                p.px(x, y, jitter(VEIN_BLACK, 6))
+            x += rng.choice((-1, 0, 1))
+            y += rng.choice((0, 1, 1))
+    fx, fy, _, _ = head["front"]
+    # Dried blood below the grin and down the chest.
+    for x in range(7):
+        if rng.random() < 0.6:
+            p.px(fx + x, fy + 9, jitter(DRIED_BLOOD, 6), glow=(0, 0, 0))
+    tx, ty, _, _ = torso["front"]
+    for x in (1, 3, 6):
+        for y in range(rng.randint(3, 9)):
+            p.px(tx + x, ty + y, jitter(DRIED_BLOOD, 6), glow=(0, 0, 0))
+    if stage < 3:
+        return
+    # The skin splits: raw red cracks with black at the bottom.
+    for _ in range(14):
+        x0, y0, rw, rh = regions[rng.randrange(len(regions))]
+        x, y = x0 + rng.randrange(rw), y0 + rng.randrange(rh)
+        for i in range(rng.randint(2, 5)):
+            if 0 <= x < w and 0 <= y < h:
+                p.px(x, y, jitter(BLACK if i % 2 else FLESH, 5), glow=(40, 4, 4) if i % 2 == 0 else (0, 0, 0))
+            x += rng.choice((-1, 1))
+            y += 1
+    # More eyes: one in the forehead, one in each cheek. All of them burning red.
+    for (x, y) in [(3, 1), (0, 5), (6, 5)]:
+        p.px(fx + x, fy + y, RED_EYE + (255,), glow=RED_EYE)
+    p.px(fx + 1, fy + 4, RED_EYE + (255,), glow=RED_EYE)
+    p.px(fx + 5, fy + 3, RED_EYE + (255,), glow=RED_EYE)
+    # Teeth stained red.
+    for x in (1, 5):
+        p.px(fx + x, fy + 7, jitter(FLESH, 6), glow=(60, 8, 8))
+    # Ribs showing through.
+    for row in (4, 6, 8):
+        for x in (1, 2, 4, 5):
+            p.px(tx + x, ty + row, jitter(FLESH if rng.random() < 0.5 else BLACK, 5), glow=(0, 0, 0))
+
+
+def paint_jumpscare(late=False):
+    global rng
+    rng = random.Random(4242)
     size = 64
     img = Image.new("RGBA", (size, size), (0, 0, 0, 255))
     d = ImageDraw.Draw(img)
@@ -267,6 +337,23 @@ def paint_jumpscare():
             for y in range(0, length):
                 if rng.random() < 0.9:
                     img.putpixel((x, y), jitter(HAIR if rng.random() > 0.1 else HAIR_SHINE, 3))
+    if late:
+        # A week later: a third eye, red pupils, the face cracking, blood everywhere.
+        d.ellipse((29, 6, 35, 13), fill=BLACK + (255,))
+        img.putpixel((32, 9), (255, 40, 30, 255))
+        for (x, y) in [(19, 24), (20, 24), (45, 20), (45, 21)]:
+            img.putpixel((x, y), (255, 40, 30, 255))
+        for _ in range(9):
+            x, y = rng.randint(12, 52), rng.randint(14, 40)
+            for i in range(rng.randint(4, 9)):
+                if 0 <= x < size and 0 <= y < size and img.getpixel((x, y))[0] > 100:
+                    img.putpixel((x, y), (110, 18, 22, 255) if i % 2 else BLACK + (255,))
+                x += rng.choice((-1, 0, 1))
+                y += 1
+        for x in range(8, 58, 3):
+            for y in range(52, 52 + rng.randint(2, 9)):
+                if y < size:
+                    img.putpixel((x, y), (90, 10, 14, 255))
     img = img.rotate(-14, resample=Image.NEAREST, fillcolor=(0, 0, 0, 255))
     # Darken towards the frame edge.
     for y in range(size):
@@ -275,7 +362,7 @@ def paint_jumpscare():
             k = max(0.0, min(1.0, 1.25 - r))
             c = img.getpixel((x, y))
             img.putpixel((x, y), (int(c[0] * k), int(c[1] * k), int(c[2] * k), 255))
-    img.save(os.path.join(ROOT, "gui", "jumpscare.png"))
+    img.save(os.path.join(ROOT, "gui", "jumpscare_late.png" if late else "jumpscare.png"))
 
 
 def paint_vignette():
@@ -353,12 +440,87 @@ def paint_lantern():
     img.save(os.path.join(ROOT, "item", "lantern_of_revelation.png"))
 
 
+BLOOD_DARK = (74, 4, 8)
+BLOOD = (112, 10, 14)
+BLOOD_WET = (150, 20, 24)
+
+
+def blood_blot(img, cx, cy, radius, drops):
+    """A splash: an irregular blob with a wet center and droplets thrown outwards."""
+    w, h = img.size
+    for y in range(h):
+        for x in range(w):
+            dx, dy = x - cx, y - cy
+            angle = math.atan2(dy, dx)
+            edge = radius * (0.75 + 0.25 * math.sin(angle * 5 + cx) + 0.12 * math.sin(angle * 11 + cy))
+            d = math.hypot(dx, dy)
+            if d < edge:
+                color = BLOOD_WET if d < edge * 0.35 else BLOOD if d < edge * 0.8 else BLOOD_DARK
+                img.putpixel((x, y), jitter(color, 6))
+    for _ in range(drops):
+        angle = rng.random() * math.pi * 2
+        dist = radius * (1.2 + rng.random() * 1.2)
+        x, y = int(cx + math.cos(angle) * dist), int(cy + math.sin(angle) * dist)
+        if 0 <= x < w and 0 <= y < h:
+            img.putpixel((x, y), jitter(BLOOD_DARK, 6))
+
+
+def paint_blood():
+    os.makedirs(os.path.join(ROOT, "block"), exist_ok=True)
+    layouts = [
+        [(8, 8, 5.5, 9)],
+        [(6, 7, 4.0, 6), (11, 11, 2.5, 4)],
+        [(9, 6, 3.0, 5), (5, 11, 3.5, 5), (12, 12, 1.5, 3)],
+        [(8, 9, 2.5, 12)],
+    ]
+    for i, blots in enumerate(layouts):
+        img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+        for (cx, cy, r, drops) in blots:
+            blood_blot(img, cx, cy, r, drops)
+        img.save(os.path.join(ROOT, "block", "blood_%d.png" % i))
+
+
+def paint_corpse_blood():
+    """Overlay for the villager texture: stains soaked into the robe and running from the head."""
+    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    for _ in range(26):
+        blood_blot(img, rng.randint(0, 63), rng.randint(0, 63), rng.uniform(1.5, 4.5), rng.randint(2, 6))
+    # Down the face (the villager head front is at 8,8 to 16,18).
+    for x in (9, 12, 14):
+        for y in range(rng.randint(12, 14), 18):
+            img.putpixel((x, y), jitter(BLOOD, 6))
+    img.save(os.path.join(ROOT, "entity", "corpse_blood.png"))
+
+
+def paint_unlit_torch():
+    """Same shape as the vanilla torch (2 pixels wide, rows 6-15), burnt black at the top."""
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    wood = [(104, 78, 44), (84, 62, 34)]
+    for y in range(6, 16):
+        for x in (7, 8):
+            if y <= 7:
+                color = (26, 22, 22) if (x + y) % 3 else (58, 50, 48)
+            elif y == 8:
+                color = (46, 34, 26)
+            else:
+                color = wood[x - 7]
+            img.putpixel((x, y), jitter(color, 5))
+    # One ember that hasn't quite gone out.
+    img.putpixel((8, 6), (120, 30, 18, 255))
+    img.save(os.path.join(ROOT, "block", "unlit_torch.png"))
+
+
 if __name__ == "__main__":
     for sub in ("entity", "gui", "item"):
         os.makedirs(os.path.join(ROOT, sub), exist_ok=True)
-    paint_entity()
+    for stage in (1, 2, 3):
+        paint_entity(stage)
     paint_jumpscare()
+    paint_jumpscare(late=True)
     paint_vignette()
     paint_scrap()
     paint_lantern()
+    paint_blood()
+    paint_corpse_blood()
+    paint_unlit_torch()
     print("textures written to", os.path.normpath(ROOT))

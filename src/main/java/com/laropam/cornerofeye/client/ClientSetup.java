@@ -13,6 +13,7 @@ public final class ClientSetup {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.THE_ONE.get(), TheOneRenderer::new);
+        event.registerEntityRenderer(ModEntities.CORPSE.get(), CorpseRenderer::new);
     }
 
     @SubscribeEvent

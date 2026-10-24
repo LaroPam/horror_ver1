@@ -53,31 +53,66 @@ SLEEP = {
     "ru_ru": ["Проснись.", "Кто-то сел на край твоей кровати.", "Ты здесь не один."],
 }
 
+# The previous owner's notes, by chapter. Chapters turn up one at a time (see Journal.java).
 JOURNAL = {
-    "en_us": [
-        "If you are reading this, it found you too.\n\nI don't know how many nights I have left. I'll write down what I've learned.",
-        "It stands in the dark, right at the edge of your vision.\n\nTurn to look and there is nothing there. You can only ever see it from the corner of your eye.",
-        "It puts out the lights. Torches, lanterns, campfires. Only the ones you aren't looking at.\n\nOne by one, until it's dark enough.",
-        "It won't step into light, and it can't touch you while you stand in it.\n\nGlowstone doesn't burn. Neither do sea lanterns. Those it can't put out.",
-        "Walls mean nothing to it.\n\nAt first it only watches. Then it comes a little closer every night.\n\nBy the seventh night it stops waiting.",
-        "Where it stood, it leaves scraps. Cold, like a torn piece of shadow.\n\nWalk to where you saw it. It won't let you get close, but the scrap will be there.",
-        "Collect them while it is still only watching.\n\nOnce the hunt begins it leaves almost nothing behind.",
-        "A lantern, four amethyst shards and four scraps make a Lantern of Revelation.\n\nHold it to charge. Let go to flash.",
-        "If it is anywhere in sight when the light goes off, even at the very edge, it is caught.\n\nEvery flash burns one scrap. Don't waste them.",
-        "Three times. Catch it three times and it leaves for good.\n\nI caught it once.\n\nIt's in the corner now. I can see it.\n\nDon't look at it.",
-    ],
-    "ru_ru": [
-        "Если ты это читаешь, оно нашло и тебя.\n\nНе знаю, сколько ночей у меня осталось. Запишу всё, что успел понять.",
-        "Оно стоит в темноте, на самом краю зрения.\n\nПовернёшься посмотреть — там никого. Его можно увидеть только краем глаза.",
-        "Оно гасит свет. Факелы, фонари, костры. Только те, на которые ты не смотришь.\n\nОдин за другим, пока не станет достаточно темно.",
-        "В свет оно не заходит и не может тронуть тебя, пока ты стоишь в нём.\n\nСветокамень не горит. Морской фонарь тоже. Их оно погасить не может.",
-        "Стены для него ничего не значат.\n\nСначала оно просто смотрит. Потом каждую ночь подходит чуть ближе.\n\nК седьмой ночи оно перестаёт ждать.",
-        "Там, где оно стояло, остаются обрывки. Холодные, как клочок тени.\n\nИди туда, где его видел. Близко оно не подпустит, но обрывок останется.",
-        "Собирай их, пока оно только смотрит.\n\nКогда начнётся охота, оно почти ничего не оставляет.",
-        "Фонарь, четыре осколка аметиста и четыре обрывка — это Фонарь откровения.\n\nДержи, чтобы зарядить. Отпусти — будет вспышка.",
-        "Если в момент вспышки оно хоть где-то в поле зрения, даже на самом краю, — оно попалось.\n\nКаждая вспышка сжигает один обрывок. Не трать зря.",
-        "Три раза. Поймай его трижды, и оно уйдёт навсегда.\n\nЯ поймал один раз.\n\nОно сейчас в углу. Я его вижу.\n\nНе смотри на него.",
-    ],
+    "en_us": {
+        "arrival": [
+            "If you are reading this, it found you too.\n\nI don't know how many nights I have left. I'll write down what I understand, when I understand it.",
+            "It stands in the dark, right at the edge of your vision.\n\nTurn to look and there is nothing there. You can only ever see it from the corner of your eye.",
+            "It puts out the lights. Only the ones you aren't looking at. Torches, furnaces, lanterns, even glowstone.\n\nNothing it puts out comes back on by itself.",
+        ],
+        "scraps": [
+            "I went to where I had seen it standing. It didn't let me close. But there was something on the ground: a scrap, cold, like a torn piece of shadow.",
+            "I think they matter. Collect them while it is still only watching.\n\nLater it leaves almost nothing.",
+        ],
+        "lantern": [
+            "Light doesn't kill it. It shows it.\n\nA lantern in the middle, a scrap on each side, amethyst in the corners. I made one. It hums.",
+        ],
+        "flash": [
+            "Hold the lantern until it chimes, then let go.\n\nIf it is anywhere in sight at that moment, even at the very edge, it is caught.",
+            "Every flash burns a scrap. Don't waste them.\n\nOnce the hunt begins you have to be much closer to catch it.",
+        ],
+        "moments": [
+            "It has started coming differently. Sometimes it shows itself. A clock starts ticking in your head and you just know what you have to do.\n\nDo it.",
+            "Flint lights what it put out again, but never while it is still near.\n\nOnly fresh light saves you, and it has to be bright: stand right next to it.",
+        ],
+        "three": [
+            "It screams when you catch it.\n\nThree times. Catch it three times and it leaves this world for good.",
+        ],
+        "hunt": [
+            "The seventh night. It has stopped waiting. It comes through walls now.\n\nIf you don't have the lantern yet, find scraps while you still can.",
+            "I caught it once.\n\nIt's in the corner now. I can see it.\n\nDon't look at it.",
+        ],
+    },
+    "ru_ru": {
+        "arrival": [
+            "Если ты это читаешь, оно нашло и тебя.\n\nНе знаю, сколько ночей у меня осталось. Буду записывать, что пойму, когда пойму.",
+            "Оно стоит в темноте, на самом краю зрения.\n\nПовернёшься посмотреть — там никого. Его можно увидеть только краем глаза.",
+            "Оно гасит свет. Только тот, на который не смотришь. Факелы, печи, фонари, даже светокамень.\n\nСамо ничего не загорается.",
+        ],
+        "scraps": [
+            "Я пошёл туда, где видел его. Близко оно не подпустило. Но на земле что-то осталось: обрывок, холодный, как клочок тени.",
+            "Кажется, они важны. Собирай их, пока оно только смотрит.\n\nПотом оно почти ничего не оставляет.",
+        ],
+        "lantern": [
+            "Свет его не убивает. Он его показывает.\n\nФонарь в середине, обрывки по сторонам, аметист по углам. Я сделал такой. Он гудит.",
+        ],
+        "flash": [
+            "Держи фонарь, пока не зазвенит, и отпусти.\n\nЕсли в этот миг оно хоть где-то в поле зрения, даже на самом краю, — оно попалось.",
+            "Каждая вспышка сжигает обрывок. Не трать зря.\n\nКогда начнётся охота, ловить его придётся с куда меньшего расстояния.",
+        ],
+        "moments": [
+            "Оно стало приходить по-другому. Иногда показывается само. В голове начинают тикать часы, и ты просто знаешь, что надо сделать.\n\nДелай.",
+            "Огниво зажигает погашенное им, но никогда — пока оно рядом.\n\nСпасает только свежий свет, и он должен быть ярким: стой прямо возле него.",
+        ],
+        "three": [
+            "Когда его ловишь, оно кричит.\n\nТри раза. Поймай его трижды, и оно уйдёт из этого мира навсегда.",
+        ],
+        "hunt": [
+            "Седьмая ночь. Оно больше не ждёт. Теперь оно проходит сквозь стены.\n\nЕсли у тебя ещё нет фонаря, ищи обрывки, пока можешь.",
+            "Я поймал его один раз.\n\nОно сейчас в углу. Я его вижу.\n\nНе смотри на него.",
+        ],
+    },
 }
 
 TEXT = {
@@ -114,6 +149,15 @@ TEXT = {
         "cornerofeye.challenge.light_place.hint": "Place a torch. Now.",
         "cornerofeye.challenge.dont_look": "DON'T TURN AROUND",
         "cornerofeye.challenge.dont_look.hint": "Whatever you hear",
+        "cornerofeye.challenge.leave_water": "GET OUT OF THE WATER",
+        "cornerofeye.challenge.leave_water.hint": "Shore or a boat. Now.",
+        "cornerofeye.message.massacre_done": "The village has gone very quiet.",
+        "cornerofeye.message.cant_relight": "It won't catch. Not while it's still here.",
+        "cornerofeye.challenge.light_meter": "LIGHT %s / %s",
+        "block.cornerofeye.unlit_torch": "Burnt-out Torch",
+        "block.cornerofeye.unlit_wall_torch": "Burnt-out Torch",
+        "entity.cornerofeye.corpse": "Corpse",
+        "block.cornerofeye.blood": "Blood",
         "cornerofeye.challenge.still": "DON'T MOVE",
         "cornerofeye.challenge.still.hint": "Crouch and freeze. It finds you by sound.",
         "cornerofeye.message.survived": "It's gone. For now.",
@@ -126,8 +170,9 @@ TEXT = {
         "cornerofeye.stage.1": "Watching",
         "cornerofeye.stage.2": "Approaching",
         "cornerofeye.stage.3": "Hunting",
-        "cornerofeye.journal.title": "Someone's Notes",
+        "cornerofeye.journal.title": "Someone's Notes, part %s",
         "cornerofeye.message.journal": "There's a notebook in your pocket. You don't remember picking it up.",
+        "cornerofeye.message.page": "Another page has turned up among your things.",
         "cornerofeye.message.stage.2": "It's getting closer.",
         "cornerofeye.message.stage.3": "It has stopped waiting.",
         "cornerofeye.message.wounded": "It screams. %s more.",
@@ -190,6 +235,15 @@ TEXT = {
         "cornerofeye.challenge.light_place.hint": "Поставь факел. Сейчас.",
         "cornerofeye.challenge.dont_look": "НЕ ОБОРАЧИВАЙСЯ",
         "cornerofeye.challenge.dont_look.hint": "Что бы ты ни услышал",
+        "cornerofeye.challenge.leave_water": "ВЫБЕРИСЬ ИЗ ВОДЫ",
+        "cornerofeye.challenge.leave_water.hint": "На берег или в лодку. Быстро.",
+        "cornerofeye.message.massacre_done": "В деревне стало очень тихо.",
+        "cornerofeye.message.cant_relight": "Не загорается. Пока оно здесь — нет.",
+        "cornerofeye.challenge.light_meter": "СВЕТ %s / %s",
+        "block.cornerofeye.unlit_torch": "Потухший факел",
+        "block.cornerofeye.unlit_wall_torch": "Потухший факел",
+        "entity.cornerofeye.corpse": "Труп",
+        "block.cornerofeye.blood": "Кровь",
         "cornerofeye.challenge.still": "НЕ ДВИГАЙСЯ",
         "cornerofeye.challenge.still.hint": "Присядь и замри. Оно ищет тебя по звуку.",
         "cornerofeye.message.survived": "Оно ушло. Пока что.",
@@ -202,8 +256,9 @@ TEXT = {
         "cornerofeye.stage.1": "Наблюдение",
         "cornerofeye.stage.2": "Приближение",
         "cornerofeye.stage.3": "Охота",
-        "cornerofeye.journal.title": "Чьи-то записи",
+        "cornerofeye.journal.title": "Чьи-то записи, часть %s",
         "cornerofeye.message.journal": "В кармане чужая записная книжка. Ты не помнишь, откуда она.",
+        "cornerofeye.message.page": "Среди твоих вещей нашлась ещё одна страница.",
         "cornerofeye.message.stage.2": "Оно подходит ближе.",
         "cornerofeye.message.stage.3": "Оно больше не ждёт.",
         "cornerofeye.message.wounded": "Оно кричит. Осталось: %s.",
@@ -245,8 +300,9 @@ if __name__ == "__main__":
             data[f"cornerofeye.said.{i}"] = line
         for i, line in enumerate(SLEEP[lang]):
             data[f"cornerofeye.sleep.{i}"] = line
-        for i, page in enumerate(JOURNAL[lang]):
-            data[f"cornerofeye.journal.page.{i}"] = page
+        for chapter, pages in JOURNAL[lang].items():
+            for i, page in enumerate(pages):
+                data[f"cornerofeye.journal.{chapter}.{i}"] = page
         for i, sign in enumerate(SIGNS[lang]):
             for j, line in enumerate(sign):
                 data[f"cornerofeye.sign.{i}.{j}"] = line

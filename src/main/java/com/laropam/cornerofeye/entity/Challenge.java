@@ -11,7 +11,9 @@ public enum Challenge {
     /** It is right behind you. Don't turn around until the timer runs out. */
     DONT_LOOK,
     /** Crouch and stay perfectly still until the timer runs out. */
-    STILL;
+    STILL,
+    /** Something is coming up from below: get out of the water. */
+    LEAVE_WATER;
 
     public String key() {
         return "cornerofeye.challenge." + this.name().toLowerCase(Locale.ROOT);

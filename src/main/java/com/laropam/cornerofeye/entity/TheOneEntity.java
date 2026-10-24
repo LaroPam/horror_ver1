@@ -3,6 +3,7 @@ package com.laropam.cornerofeye.entity;
 import com.laropam.cornerofeye.HorrorConfig;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntManager;
+import com.laropam.cornerofeye.haunt.LightSuppression;
 import com.laropam.cornerofeye.haunt.Lights;
 import com.laropam.cornerofeye.haunt.Sight;
 import com.laropam.cornerofeye.haunt.SpotFinder;
@@ -45,6 +46,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -61,6 +64,12 @@ public class TheOneEntity extends Monster {
             SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.INT);
     /** Which step of its scene it is on; each scene numbers its own steps. */
     private static final EntityDataAccessor<Integer> DATA_ANIM =
+            SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.INT);
+    /** Haunt stage when it appeared: decides how far it has rotted. */
+    private static final EntityDataAccessor<Integer> DATA_STAGE =
+            SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.INT);
+    /** Days into the haunt when it appeared: it grows a little every day. */
+    private static final EntityDataAccessor<Integer> DATA_DAYS =
             SynchedEntityData.defineId(TheOneEntity.class, EntityDataSerializers.INT);
     /** Leans to its own left (true) or right while peeking. */
     private static final EntityDataAccessor<Boolean> DATA_SIDE =
@@ -80,6 +89,8 @@ public class TheOneEntity extends Monster {
     private int holdTicks;
     @Nullable
     private Vec3 waypoint;
+    /** Lights it has put out on this visit: nobody can light them again until it leaves. */
+    private final List<BlockPos> smothered = new ArrayList<>();
     @Nullable
     private SceneRunner sceneRunner;
     private int sceneAge;
@@ -123,7 +134,7 @@ public class TheOneEntity extends Monster {
         one.setYHeadRot(yaw);
         one.setYBodyRot(yaw);
         one.victimId = victim.getUUID();
-        one.stage = stage;
+        one.setStage(level, stage);
         one.startPhase(phase);
         level.addFreshEntity(one);
         return one;
@@ -141,7 +152,7 @@ public class TheOneEntity extends Monster {
         one.setYHeadRot(yaw);
         one.setYBodyRot(yaw);
         one.victimId = victim.getUUID();
-        one.stage = stage;
+        one.setStage(level, stage);
         one.entityData.set(DATA_SCENE, scene.ordinal());
         one.sceneRunner = runner;
         one.startPhase(Phase.SCENE);
@@ -162,6 +173,31 @@ public class TheOneEntity extends Monster {
         this.entityData.define(DATA_SCENE, Scene.NONE.ordinal());
         this.entityData.define(DATA_ANIM, 0);
         this.entityData.define(DATA_SIDE, false);
+        this.entityData.define(DATA_STAGE, HauntData.WATCHING);
+        this.entityData.define(DATA_DAYS, 0);
+    }
+
+    private void setStage(ServerLevel level, int stage) {
+        this.stage = stage;
+        this.entityData.set(DATA_STAGE, stage);
+        this.entityData.set(DATA_DAYS, (int) Math.min(Integer.MAX_VALUE, HauntData.get(level.getServer()).getDays()));
+    }
+
+    /** Client side: 1-3, which version of it to draw. */
+    public int getVisualStage() {
+        return Mth.clamp(this.entityData.get(DATA_STAGE), HauntData.WATCHING, HauntData.HUNTING);
+    }
+
+    /** 0 on its first night, 1 once the hunt is on and it has had a week: taller, twitchier, worse. */
+    public float getMenace() {
+        float byStage = (this.getVisualStage() - 1) / 2.0F;
+        float byDays = this.entityData.get(DATA_DAYS) / 8.0F;
+        return Mth.clamp(Math.max(byStage, byDays), 0.0F, 1.0F);
+    }
+
+    /** Its voice gets deeper as it gets worse. */
+    public float voicePitch() {
+        return 1.0F - 0.08F * (this.stage - 1);
     }
 
     public Phase getPhase() {
@@ -306,7 +342,9 @@ public class TheOneEntity extends Monster {
                 return null;
             }
             this.victimId = nearest.getUUID();
-            this.stage = HauntData.HUNTING;
+            if (this.level() instanceof ServerLevel level) {
+                this.setStage(level, HauntData.HUNTING);
+            }
         }
         Player player = this.level().getPlayerByUUID(this.victimId);
         if (player instanceof ServerPlayer serverPlayer && serverPlayer.isAlive() && !serverPlayer.isSpectator()
@@ -452,7 +490,17 @@ public class TheOneEntity extends Monster {
         this.challengeTicks = ticks;
         this.challengeGrace = 25;
         this.victimLastPos = victim.position();
-        HorrorNetwork.send(victim, HorrorPacket.Type.CHALLENGE, new BlockPos(ticks, 0, 0), type.ordinal());
+        HorrorNetwork.send(victim, HorrorPacket.Type.CHALLENGE, new BlockPos(ticks, HorrorConfig.SAFE_LIGHT_LEVEL.get(), 0), type.ordinal());
+    }
+
+    /** Moves on to another scene without leaving, e.g. from the village to you. */
+    public void switchScene(ServerLevel level, ServerPlayer victim, Scene scene, SceneRunner runner) {
+        this.entityData.set(DATA_SCENE, scene.ordinal());
+        this.sceneRunner = runner;
+        this.sceneAge = 0;
+        this.phaseTicks = 1800;
+        this.setAnim(0);
+        runner.start(this, level, victim);
     }
 
     public boolean hasChallenge() {
@@ -484,6 +532,13 @@ public class TheOneEntity extends Monster {
                     survived = false;
                 } else if (this.challengeTicks <= 0) {
                     survived = true;
+                }
+            }
+            case LEAVE_WATER -> {
+                if (!victim.isInWater()) {
+                    survived = true;
+                } else if (this.challengeTicks <= 0) {
+                    survived = false;
                 }
             }
             case STILL -> {
@@ -548,6 +603,20 @@ public class TheOneEntity extends Monster {
         this.setYBodyRot(yaw);
     }
 
+    public void rememberSmothered(BlockPos pos) {
+        this.smothered.add(pos.immutable());
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        if (this.level() instanceof ServerLevel level && !this.smothered.isEmpty()) {
+            // Gone. What it put out can be lit again now, but nothing comes back on by itself.
+            LightSuppression.unlock(level, this.smothered);
+            this.smothered.clear();
+        }
+        super.remove(reason);
+    }
+
     public void touch(ServerPlayer victim) {
         HorrorNetwork.send(victim, HorrorPacket.Type.JUMPSCARE, 18);
         this.level().playSound(victim, this.getX(), this.getY(), this.getZ(), ModSounds.SCREAM.get(), SoundSource.HOSTILE, 1.5F, 1.0F);
@@ -562,6 +631,11 @@ public class TheOneEntity extends Monster {
         }
         victim.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 200, 0), this);
         victim.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 1), this);
+        if (this.getScene() == Scene.UNDERWATER) {
+            // It takes you down with it.
+            victim.setDeltaMovement(0.0D, -1.4D, 0.0D);
+            victim.hurtMarked = true;
+        }
         HauntManager.award(victim, "touched");
         this.leave(HauntManager.Exit.TOUCHED);
     }
@@ -655,7 +729,7 @@ public class TheOneEntity extends Monster {
         if (!HorrorConfig.ALLOW_BLOCK_CHANGES.get()) {
             return;
         }
-        Lights.snuffOne(level, victim.blockPosition(), 14, 6);
+        Lights.smotherOne(level, victim.blockPosition(), 14, 6, this);
     }
 
     private void ambientSounds(ServerPlayer victim, double range) {
@@ -664,13 +738,13 @@ public class TheOneEntity extends Monster {
         }
         boolean breath = this.random.nextBoolean();
         HorrorNetwork.playSoundTo(victim, breath ? ModSounds.BREATH.get() : ModSounds.SKITTER.get(), SoundSource.HOSTILE,
-                this.getEyePosition(), breath ? 0.7F : 0.5F, 0.8F + this.random.nextFloat() * 0.25F);
+                this.getEyePosition(), breath ? 0.7F : 0.5F, (0.8F + this.random.nextFloat() * 0.25F) * this.voicePitch());
         this.soundCooldown = 70 + this.random.nextInt(80);
     }
 
     public void playSoundAt(SoundEvent sound, float volume) {
         this.level().playSound(null, this.getX(), this.getY() + 1.5D, this.getZ(), sound, SoundSource.HOSTILE, volume,
-                0.85F + this.random.nextFloat() * 0.2F);
+                (0.85F + this.random.nextFloat() * 0.2F) * this.voicePitch());
     }
 
     // --------------------------------------------------------------- helpers

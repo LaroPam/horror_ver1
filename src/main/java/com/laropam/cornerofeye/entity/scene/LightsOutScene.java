@@ -46,8 +46,8 @@ public final class LightsOutScene implements SceneRunner {
         if (age < doneAt) {
             if (age % GAP == 0) {
                 BlockPos light = this.lights.get(age / GAP);
-                if (Lights.isSnuffable(level.getBlockState(light))) {
-                    Lights.snuff(level, light);
+                if (Lights.isLightSource(level, light, level.getBlockState(light))) {
+                    Lights.smother(level, light, one);
                 }
             }
             return;

@@ -118,10 +118,19 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
     @Override
     public void setupAnim(TheOneEntity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
         this.root().getAllParts().forEach(ModelPart::resetPose);
+        // Its fingers keep growing.
+        float claws = 1.0F + 0.7F * entity.getMenace();
+        for (ModelPart forearm : new ModelPart[]{this.rightForearm, this.leftForearm}) {
+            for (int i = 0; i < 3; i++) {
+                forearm.getChild("finger" + i).yScale = claws;
+            }
+        }
         float crawl = entity.getCrawlAmount(ageInTicks - entity.tickCount);
         float yaw = netHeadYaw * Mth.DEG_TO_RAD;
         float pitch = headPitch * Mth.DEG_TO_RAD;
-        float twitch = Mth.sin(ageInTicks * 0.9F) * Mth.sin(ageInTicks * 0.13F) > 0.92F ? 0.25F : 0.0F;
+        float menace = entity.getMenace();
+        // The worse it gets, the more often it jerks.
+        float twitch = Mth.sin(ageInTicks * 0.9F) * Mth.sin(ageInTicks * 0.13F) > 0.92F - 0.3F * menace ? 0.25F + 0.15F * menace : 0.0F;
 
         if (entity.getPhase() == Phase.REVEALED) {
             this.poseRevealed(ageInTicks);
@@ -130,7 +139,7 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
 
         // Standing: hunched, head cocked too far, fingers brushing the ground.
         float bodyStand = 0.28F;
-        float headTilt = 0.55F + twitch + Mth.sin(ageInTicks * 0.03F) * 0.05F;
+        float headTilt = 0.55F + 0.2F * menace + twitch + Mth.sin(ageInTicks * 0.03F) * 0.05F;
 
         // Crawling: torso flat, knees above the hips, elbows high, head upside down.
         float bodyCrawl = 1.4F;
@@ -142,7 +151,7 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
         this.head.xRot = Mth.lerp(crawl, -bodyStand, -bodyCrawl) + pitch;
         this.head.yRot = yaw;
         this.head.zRot = Mth.lerp(crawl, headTilt, PI + twitch);
-        this.jaw.xRot = Mth.lerp(crawl, 0.12F, 0.45F) + twitch;
+        this.jaw.xRot = Mth.lerp(crawl, 0.12F, 0.45F) + 0.3F * menace + twitch;
 
         float armStand = -bodyStand + 0.05F;
         this.rightArm.xRot = Mth.lerp(crawl, armStand + Mth.sin(ageInTicks * 0.04F) * 0.03F, -3.7F + swing * 0.5F);
@@ -175,6 +184,23 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
                 if (entity.getAnim() == 1) {
                     this.reach(0.5F, ageInTicks);
                 }
+            }
+            case CEILING -> this.poseHanging(ageInTicks, yaw, pitch);
+            case UNDERWATER -> {
+                // Rising with its arms up, reaching for your feet.
+                this.body.xRot = 0.0F;
+                this.body.zRot = Mth.sin(ageInTicks * 0.08F) * 0.08F;
+                this.head.xRot = pitch;
+                this.rightArm.xRot = -2.9F + Mth.sin(ageInTicks * 0.15F) * 0.15F;
+                this.leftArm.xRot = -2.9F + Mth.sin(ageInTicks * 0.15F + 2.0F) * 0.15F;
+                this.rightArm.zRot = 0.25F;
+                this.leftArm.zRot = -0.25F;
+                this.rightForearm.xRot = this.leftForearm.xRot = 0.0F;
+                this.jaw.xRot = 0.6F;
+            }
+            case CHASE -> {
+                this.jaw.xRot = 0.85F;
+                this.head.zRot += Mth.sin(ageInTicks * 2.3F) * 0.2F;
             }
             case STILL -> {
                 // Sniffing for you.
@@ -214,6 +240,27 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
         lead.zRot = Mth.lerp(lean, lead.zRot, -side * 0.35F);
         leadForearm.xRot = Mth.lerp(lean, leadForearm.xRot, 1.25F);
         other.zRot = Mth.lerp(lean, other.zRot, -this.body.zRot);
+    }
+
+    /**
+     * Drawn upside down by the renderer: legs up in the rock, arms dangling towards the floor, head turning
+     * to find you. Rotations are mirrored by the flip, so the head's yaw and pitch are negated.
+     */
+    private void poseHanging(float ageInTicks, float yaw, float pitch) {
+        this.hips.y = -2.0F;
+        this.body.xRot = 0.0F;
+        this.body.zRot = Mth.sin(ageInTicks * 0.05F) * 0.06F;
+        this.head.xRot = -pitch;
+        this.head.yRot = -yaw;
+        this.head.zRot = 0.4F + Mth.sin(ageInTicks * 0.07F) * 0.15F;
+        this.jaw.xRot = 0.5F;
+        this.rightArm.xRot = PI + Mth.sin(ageInTicks * 0.09F) * 0.12F;
+        this.leftArm.xRot = PI + Mth.sin(ageInTicks * 0.09F + 1.7F) * 0.12F;
+        this.rightArm.zRot = -0.12F;
+        this.leftArm.zRot = 0.12F;
+        this.rightForearm.xRot = this.leftForearm.xRot = 0.15F;
+        this.rightThigh.xRot = this.leftThigh.xRot = 0.0F;
+        this.rightShin.xRot = this.leftShin.xRot = 0.0F;
     }
 
     /** Bent right over you from behind, jaw hanging, hands either side of your head. */

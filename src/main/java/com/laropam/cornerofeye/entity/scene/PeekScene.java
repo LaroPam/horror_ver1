@@ -23,6 +23,8 @@ import net.minecraft.world.phys.Vec3;
 public final class PeekScene implements SceneRunner {
     public static final int LEAN_OUT = 50;
     public static final int SNAP_BACK = 5;
+    /** Eye contact this long (in ticks) and it is gone. */
+    public static final int STARE_LIMIT = 12;
 
     private final boolean leanLeft;
     private int staredAt;
@@ -63,10 +65,10 @@ public final class PeekScene implements SceneRunner {
         double dz = victim.getZ() - one.getZ();
         this.approached = dx * dx + dz * dz < 9.0D * 9.0D;
         Vec3 head = one.position().add(0.0D, 2.4D, 0.0D);
-        if (age > LEAN_OUT && Sight.canSee(level, victim, head, 0.97D)) {
+        if (age > LEAN_OUT && Sight.canSee(level, victim, head, 0.95D)) {
             this.staredAt++;
         }
-        if (this.approached || this.staredAt > 30 || age > 320) {
+        if (this.approached || this.staredAt > STARE_LIMIT || age > 320) {
             this.snapAge = age;
             one.setAnim(2);
             HorrorNetwork.playSoundTo(victim, ModSounds.SKITTER.get(), SoundSource.HOSTILE, one.getEyePosition(), 1.0F, 1.2F);

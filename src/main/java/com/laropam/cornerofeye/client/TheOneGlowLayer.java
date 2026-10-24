@@ -12,7 +12,10 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 
 /** Its eyes and teeth catch light that isn't there, and the pale skin glows just enough to make out in the dark. */
 public class TheOneGlowLayer extends RenderLayer<TheOneEntity, TheOneModel> {
-    private static final RenderType GLOW = RenderType.eyes(CornerOfTheEye.id("textures/entity/the_one_glow.png"));
+    private static final RenderType[] GLOW = {
+            RenderType.eyes(CornerOfTheEye.id("textures/entity/the_one_glow_stage1.png")),
+            RenderType.eyes(CornerOfTheEye.id("textures/entity/the_one_glow_stage2.png")),
+            RenderType.eyes(CornerOfTheEye.id("textures/entity/the_one_glow_stage3.png"))};
 
     public TheOneGlowLayer(RenderLayerParent<TheOneEntity, TheOneModel> parent) {
         super(parent);
@@ -25,7 +28,7 @@ public class TheOneGlowLayer extends RenderLayer<TheOneEntity, TheOneModel> {
         // Additive blending: fade by darkening the color, not with alpha.
         float strength = model.getAlpha();
         model.setAlpha(1.0F);
-        model.renderToBuffer(poseStack, buffers.getBuffer(GLOW), LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY,
+        model.renderToBuffer(poseStack, buffers.getBuffer(GLOW[entity.getVisualStage() - 1]), LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY,
                 strength, strength, strength, 1.0F);
         model.setAlpha(strength);
     }
