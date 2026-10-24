@@ -7,6 +7,7 @@ import com.laropam.cornerofeye.registry.ModSounds;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -38,9 +39,10 @@ public final class ChaseScene implements SceneRunner {
 
     @Override
     public void tick(TheOneEntity one, ServerLevel level, ServerPlayer victim, int age) {
-        // Slow at first, then faster and faster. Walls hold it up for a moment; then it lunges to make up for it.
+        // Slow at first, then faster and faster, by whatever way gets it to you: doors, gaps, or through the wall.
         double t = Math.min(1.0D, age / (double) this.length);
-        one.crawlTowards(this.start.lerp(victim.position(), t * t), 0.9D);
+        double distance = Math.max(1.0D, this.start.distanceTo(victim.position()));
+        one.crawlTowards(victim.position(), Mth.clamp(2.0D * t * distance / this.length, 0.08D, 0.6D));
         if (age % 10 == 0) {
             HorrorNetwork.playSoundTo(victim, ModSounds.SKITTER.get(), SoundSource.HOSTILE, one.position(), 1.0F, 0.9F + (float) t * 0.4F);
         }

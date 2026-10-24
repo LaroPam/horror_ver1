@@ -48,10 +48,10 @@ public class TheOneRenderer extends MobRenderer<TheOneEntity, TheOneModel> {
             poseStack.translate(0.0F, entity.getBbHeight(), 0.0F);
             poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
         }
-        float prone = entity.getProne(partialTicks) * entity.getCrawlAmount(partialTicks);
-        if (prone > 0.0F) {
-            // Squeezed into a tunnel that climbs or drops, it lies along the slope.
-            poseStack.mulPose(Axis.XP.rotation(-entity.getClimb(partialTicks) * prone));
+        float crawl = entity.getCrawlAmount(partialTicks);
+        if (crawl > 0.0F) {
+            // On all fours it lies along whatever it is climbing: up a tunnel, or straight up a wall like a spider.
+            poseStack.mulPose(Axis.XP.rotation(-entity.getClimb(partialTicks) * crawl));
         }
     }
 

@@ -41,8 +41,8 @@ public final class StillScene implements SceneRunner {
         double radius = Mth.lerp(progress, 7.0D, 3.0D);
         this.angle += this.direction * 0.05D;
         Vec3 target = new Vec3(this.center.x + Math.cos(this.angle) * radius, this.center.y, this.center.z + Math.sin(this.angle) * radius);
-        // Round and round you, through the walls if it has to.
-        one.crawlTowards(target, 0.6D);
+        // Round and round you, finding its way past whatever is in the way.
+        one.crawlTowards(target, 0.4D);
         if (age % 18 == 0) {
             HorrorNetwork.playSoundTo(victim, ModSounds.SKITTER.get(), SoundSource.HOSTILE, one.position(), 0.9F, 0.8F + level.random.nextFloat() * 0.3F);
         }

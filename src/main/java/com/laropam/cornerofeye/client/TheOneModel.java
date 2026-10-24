@@ -365,6 +365,16 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
                 this.head.yRot = 0.0F;
                 this.jaw.xRot = 0.2F + 0.6F * Math.abs(Mth.sin(ageInTicks * 1.6F));
             }
+            case Burrow.OPEN -> {
+                // One hand comes up and lies flat on the door, still, as if it were listening; then it pushes, slowly.
+                float reach = Mth.clamp(time / Burrow.OPEN_AT, 0.0F, 1.0F);
+                float push = Mth.clamp((time - Burrow.OPEN_AT) / (Burrow.OPEN_LENGTH - Burrow.OPEN_AT), 0.0F, 1.0F);
+                float body = this.body.xRot;
+                this.setArm(true, body, this.reachFrom(hipsY, body, blockPx * (1.05F + 0.6F * push), floor + blockPx * Mth.lerp(reach, 0.25F, 1.0F)));
+                this.curl(this.rightForearm, Mth.lerp(reach, 0.7F, -0.4F));
+                this.head.zRot += 0.3F * reach + Mth.sin(ageInTicks * 0.5F) * 0.04F;
+                this.jaw.xRot = 0.1F + 0.3F * push;
+            }
             case Burrow.THROUGH -> {
                 // Still. Breathing. Looking at you through the hole, one hand coming in.
                 float t = Mth.clamp(time / 20.0F, 0.0F, 1.0F);

@@ -130,6 +130,7 @@ public class TheOneEntity extends Monster {
     private float climb;
     private float climbO;
     private final Burrow burrow = new Burrow(this);
+    private final Navigator navigator = new Navigator(this);
     /** Has torn its way through something on this hunt: from now on, wherever there is room, it gets up and walks. */
     private boolean upright;
     /** Ticks left of getting up after crawling out: it doesn't move until it has unfolded. */
@@ -332,6 +333,7 @@ public class TheOneEntity extends Monster {
         }
         this.entityData.set(DATA_PHASE, phase.ordinal());
         this.upright = false;
+        this.navigator.reset();
         this.gazeTicks = 0;
         this.waypoint = null;
         this.setDeltaMovement(Vec3.ZERO);
@@ -375,7 +377,7 @@ public class TheOneEntity extends Monster {
             double rise = this.getY() - this.yo;
             double run = Math.sqrt((this.getX() - this.xo) * (this.getX() - this.xo) + (this.getZ() - this.zo) * (this.getZ() - this.zo));
             // Kept while it stops to dig, so it stays lying along the slope of its tunnel.
-            float slope = rise * rise + run * run > 1.0E-4D ? (float) Mth.clamp(Math.atan2(rise, run), -1.0D, 1.0D) : this.climb;
+            float slope = rise * rise + run * run > 1.0E-4D ? (float) Mth.clamp(Math.atan2(rise, run), -1.45D, 1.45D) : this.climb;
             this.climb += (slope - this.climb) * 0.25F;
             float target = this.isCrawling() || this.mustCrawl() ? 1.0F : 0.0F;
             // Unfolding to full height after coming through a door takes its time.
@@ -425,31 +427,22 @@ public class TheOneEntity extends Monster {
     }
 
     /**
-     * Crawls towards {@code target} by at most {@code maxStep}, tearing through whatever is in the way (or
-     * passing through it, if it isn't allowed to break blocks).
+     * Crawls towards {@code target} at {@code speed}: straight there if nothing is in the way, otherwise by its
+     * own way round (doors, gaps), tearing through only what it must. Without digging it passes through walls.
      *
-     * @return false while it is busy with a block
+     * @return false while it is busy with a door or a block
      */
-    public boolean crawlTowards(Vec3 target, double maxStep) {
-        Vec3 delta = target.subtract(this.position());
-        double length = delta.length();
+    public boolean crawlTowards(Vec3 target, double speed) {
         this.setCrawling(true);
-        if (length < 1.0E-3D) {
+        if (!(this.level() instanceof ServerLevel level) || !Burrow.allowed(level, this)) {
+            Vec3 delta = target.subtract(this.position());
+            double length = delta.length();
+            if (length > 1.0E-3D) {
+                this.stepTo(this.position().add(delta.scale(Math.min(speed, length) / length)), true);
+            }
             return true;
         }
-        Vec3 next = this.position().add(delta.scale(Math.min(maxStep, length) / length));
-        if (this.level() instanceof ServerLevel level && Burrow.allowed(level, this) && !this.burrow.clear(level, next)) {
-            this.setDeltaMovement(Vec3.ZERO);
-            return false;
-        }
-        this.stepTo(next, true);
-        return true;
-    }
-
-    /** Server side: something solid right over it, so it is squeezing through a tunnel or a crawlspace. */
-    private boolean isSqueezed() {
-        BlockPos above = BlockPos.containing(this.position().add(Vec3.directionFromRotation(0.0F, this.getYRot()).scale(0.8D)).add(0.0D, 1.2D, 0.0D));
-        return !this.level().getBlockState(above).getCollisionShape(this.level(), above).isEmpty();
+        return this.navigator.follow(level, this.burrow, target, speed, true) != Navigator.Result.BUSY;
     }
 
     /** Called by Burrow when a block gives way: once it has come through, it stands up wherever it can. */
@@ -471,6 +464,12 @@ public class TheOneEntity extends Monster {
             }
         }
         return true;
+    }
+
+    /** Server side: something solid right over it, so it is squeezing through a tunnel or a crawlspace. */
+    private boolean isSqueezed() {
+        BlockPos above = BlockPos.containing(this.position().add(Vec3.directionFromRotation(0.0F, this.getYRot()).scale(0.8D)).add(0.0D, 1.2D, 0.0D));
+        return !this.level().getBlockState(above).getCollisionShape(this.level(), above).isEmpty();
     }
 
     /** Whether it can get from here to {@code spot} without going through anything solid. */
@@ -678,7 +677,7 @@ public class TheOneEntity extends Monster {
             this.holdTicks = 60 + this.random.nextInt(100);
         }
         if (this.waypoint != null && this.position().distanceToSqr(this.waypoint) > 1.0D) {
-            this.driftTowards(this.waypoint, 0.14D, safe, false);
+            this.driftTowards(this.waypoint, 0.14D, safe);
         } else {
             this.setDeltaMovement(Vec3.ZERO);
             this.setCrawling(false);
@@ -698,8 +697,8 @@ public class TheOneEntity extends Monster {
         int safe = HorrorConfig.SAFE_LIGHT_LEVEL.get();
         double dist = this.distanceTo(victim);
         if (this.burrow.isBusy()) {
-            // Head down in the wall: nothing distracts it.
-            this.burrow.clear(level, this.position());
+            // Head down in the wall, or a hand on a door: nothing distracts it.
+            this.burrow.tick(level);
             this.ambientSounds(victim, 18.0D);
             return;
         }
@@ -723,7 +722,13 @@ public class TheOneEntity extends Monster {
 
         Vec3 target = victim.position();
         double speed = (this.stage >= HauntData.HUNTING ? 0.24D : 0.18D) * (HauntData.get(level.getServer()).isBloodMoon() ? 1.3D : 1.0D);
-        boolean blocked = !this.driftTowards(target, speed, safe, true);
+        boolean canDig = Burrow.allowed(level, this);
+        Navigator.Result result = this.navigator.follow(level, this.burrow, target, speed, canDig);
+        boolean blocked = result == Navigator.Result.STUCK || result == Navigator.Result.ARRIVED && victimInLight;
+        if (result == Navigator.Result.STUCK && !canDig && !victimInLight) {
+            // No way round and not allowed to dig: it goes through the wall, the old way.
+            blocked = !this.driftTowards(target, speed, safe);
+        }
         if (blocked || victimInLight) {
             // Waits at the edge of the light and works on the light instead.
             if (--this.snuffCooldown <= 0) {
@@ -1007,50 +1012,74 @@ public class TheOneEntity extends Monster {
     // ------------------------------------------------------------- movement
 
     /** Moves straight at the target, through blocks. Refuses to drift into light. @return false if light is in the way. */
-    private boolean driftTowards(Vec3 target, double speed, int safeLight, boolean dig) {
+    /**
+     * Straight at {@code target}, refusing to step into light. Where digging is allowed it never passes through
+     * a wall: it is simply somewhere else. @return false if light is in the way
+     */
+    private boolean driftTowards(Vec3 target, double speed, int safeLight) {
         Vec3 delta = target.subtract(this.position());
         double length = delta.length();
         if (length < 0.05D) {
             this.setDeltaMovement(Vec3.ZERO);
             return true;
         }
-        if (dig && this.isSqueezed()) {
-            // Dragging itself through a tunnel is slow.
-            speed *= 0.45D;
-        } else if (dig && this.upright) {
-            // Upright it doesn't hurry.
-            speed *= 0.45D;
+        Vec3 step = delta.scale(Math.min(speed, length) / length);
+        Vec3 next = this.position().add(step);
+        if (this.isLitAt(next, safeLight)) {
+            this.setDeltaMovement(Vec3.ZERO);
+            this.setCrawling(false);
+            return false;
         }
+        if (this.level() instanceof ServerLevel level && Burrow.allowed(level, this) && Navigator.blocksBody(level, next)) {
+            this.blinkTo(target);
+            return true;
+        }
+        this.setDeltaMovement(step);
+        this.setCrawling(true);
+        float yaw = yawTowards(this.position(), target);
+        this.setYRot(yaw);
+        this.setYBodyRot(yaw);
+        return true;
+    }
+
+    private boolean isLitAt(Vec3 at, int safeLight) {
+        return this.level().getBrightness(LightLayer.BLOCK, BlockPos.containing(at)) >= safeLight
+                || this.level().getBrightness(LightLayer.BLOCK, BlockPos.containing(at.add(0.0D, 2.0D, 0.0D))) >= safeLight;
+    }
+
+    /**
+     * One step along its own path (Navigator): crawling where it must, and, once it has torn its way through
+     * something, getting up wherever there is room and walking. @return false if light is in the way
+     */
+    boolean walkStep(Vec3 waypoint, double speed) {
         if (this.riseTicks > 0) {
             // Unfolding to its full height, slowly, before it takes a step.
             this.riseTicks--;
             this.setDeltaMovement(Vec3.ZERO);
             return true;
         }
+        if (this.isSqueezed()) {
+            // Dragging itself through a tunnel is slow.
+            speed *= 0.45D;
+        } else if (this.upright) {
+            // Upright it doesn't hurry.
+            speed *= 0.45D;
+        }
+        Vec3 delta = waypoint.subtract(this.position());
+        double length = delta.length();
+        if (length < 1.0E-3D) {
+            this.setDeltaMovement(Vec3.ZERO);
+            return true;
+        }
         Vec3 step = delta.scale(Math.min(speed, length) / length);
         Vec3 next = this.position().add(step);
-        if (this.level().getBrightness(LightLayer.BLOCK, BlockPos.containing(next)) >= safeLight
-                || this.level().getBrightness(LightLayer.BLOCK, BlockPos.containing(next.add(0.0D, 2.0D, 0.0D))) >= safeLight) {
+        if (this.level().getBrightness(LightLayer.BLOCK, BlockPos.containing(next.add(0.0D, 0.2D, 0.0D))) >= HorrorConfig.SAFE_LIGHT_LEVEL.get()) {
             this.setDeltaMovement(Vec3.ZERO);
-            this.setCrawling(false);
             return false;
-        }
-        if (this.level() instanceof ServerLevel level && Burrow.allowed(level, this)) {
-            if (dig && !this.burrow.clear(level, next)) {
-                // Busy tearing at something in the way.
-                this.setDeltaMovement(Vec3.ZERO);
-                this.setCrawling(true);
-                return true;
-            }
-            if (!dig && this.burrow.wouldHit(level, next)) {
-                // It doesn't walk through walls where you might see it: it is simply somewhere else.
-                this.blinkTo(target);
-                return true;
-            }
         }
         this.setDeltaMovement(step);
         // Only once its hips are out of the hole: the whole of it has to fit where it stands up.
-        boolean crawl = !(dig && this.upright && this.hasRoomToStand(this.position()) && this.hasRoomToStand(next));
+        boolean crawl = !(this.upright && this.hasRoomToStand(this.position()) && this.hasRoomToStand(next));
         if (!crawl && this.isCrawling()) {
             this.riseTicks = 34;
             this.setDeltaMovement(Vec3.ZERO);
@@ -1059,9 +1088,11 @@ public class TheOneEntity extends Monster {
             return true;
         }
         this.setCrawling(crawl);
-        float yaw = yawTowards(this.position(), target);
-        this.setYRot(yaw);
-        this.setYBodyRot(yaw);
+        if (step.horizontalDistanceSqr() > 1.0E-6D) {
+            float yaw = yawTowards(this.position(), this.position().add(step));
+            this.setYRot(yaw);
+            this.setYBodyRot(yaw);
+        }
         return true;
     }
 
@@ -1070,6 +1101,7 @@ public class TheOneEntity extends Monster {
         this.setDeltaMovement(Vec3.ZERO);
         this.relocateCooldown = 30;
         this.gazeTicks = 0;
+        this.navigator.reset();
         if (this.random.nextInt(3) == 0) {
             this.playSoundAt(ModSounds.SKITTER.get(), 0.8F);
         }

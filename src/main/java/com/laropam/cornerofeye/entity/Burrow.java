@@ -9,18 +9,25 @@ import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.ForgeEventFactory;
 
 import javax.annotation.Nullable;
 
 /**
- * How it gets through walls: it doesn't pass through them, it tears its way through, one block at a time.
- * Whatever is in front of it, above it when it has to climb, or below it when it has to go down, gets
- * clawed at until it gives. From the other side you hear the scraping, see the cracks spread, and the
+ * What it does with its hands on the way to you (Navigator decides where): doors it opens, slowly; walls
+ * it tears through, one block at a time, in front of it, above its hands when it has to climb, or below
+ * them when it has to go down. From the other side you hear the scraping, see the cracks spread, and the
  * claws come through first.
  */
 public final class Burrow {
@@ -34,8 +41,11 @@ public final class Burrow {
     public static final int LISTEN = 22;
     /** How far ahead of its hips its claws reach when it crawls (times its size), where it stops in front of a block. */
     public static final float REACH = 2.9F;
-    /** Where its head is, ahead of its hips, when it lies flat. */
-    private static final double HEAD = 1.15D;
+    /** A hand on a door, then opening it. */
+    public static final int OPEN = 5;
+    public static final int OPEN_LENGTH = 30;
+    /** When, into opening, the door actually moves. */
+    public static final int OPEN_AT = 16;
 
     private static final int STROKE = 7;
 
@@ -51,6 +61,9 @@ public final class Burrow {
     private long lastBroke = -1000L;
     private int pause;
     private int sequence;
+    @Nullable
+    private BlockPos openPos;
+    private int openTicks;
 
     Burrow(TheOneEntity one) {
         this.one = one;
@@ -62,36 +75,76 @@ public final class Burrow {
     }
 
     boolean isBusy() {
-        return this.digPos != null || this.pause > 0;
+        return this.digPos != null || this.openPos != null || this.pause > 0;
     }
 
-    /**
-     * Called before each step towards {@code next}. Digs when something is in the way.
-     *
-     * @return true if it is free to make the step this tick, false while it is digging or staring
-     */
-    boolean clear(ServerLevel level, Vec3 next) {
+    /** Keeps working on what it started. Call while {@link #isBusy()}. */
+    void tick(ServerLevel level) {
         if (this.pause > 0) {
             if (--this.pause == 0) {
                 this.one.setDig(NONE, 0, 0, false);
             }
-            return false;
+            return;
+        }
+        if (this.openPos != null) {
+            this.tickOpen(level);
+            return;
         }
         if (this.digPos != null) {
             this.tickDig(level);
-            return false;
         }
-        Obstacle obstacle = this.findObstacle(level, next);
-        if (obstacle == null) {
-            return true;
-        }
-        this.start(level, obstacle.cell(), obstacle.direction());
-        return false;
     }
 
-    /** Whether a step to {@code next} would run into something solid (for moves that never dig). */
-    boolean wouldHit(ServerLevel level, Vec3 next) {
-        return this.findObstacle(level, next) != null;
+    /** Starts tearing at {@code cell}. */
+    void dig(ServerLevel level, BlockPos cell, int direction) {
+        if (!this.isBusy()) {
+            this.start(level, cell, direction);
+        }
+    }
+
+    /**
+     * Opens the door, gate or trapdoor at {@code pos}: a hand on it first, still, as if listening, and then
+     * slowly, with a long creak. @return true if it started
+     */
+    boolean open(ServerLevel level, BlockPos pos) {
+        if (this.isBusy()) {
+            return false;
+        }
+        this.openPos = pos.immutable();
+        this.openTicks = 0;
+        this.one.face(Vec3.atCenterOf(pos));
+        this.one.setDig(OPEN, ++this.sequence, OPEN_LENGTH, false);
+        return true;
+    }
+
+    private void tickOpen(ServerLevel level) {
+        BlockPos pos = this.openPos;
+        this.openTicks++;
+        if (this.openTicks == OPEN_AT) {
+            BlockState state = level.getBlockState(pos);
+            if (Navigator.isOpenable(state) && !state.getValue(BlockStateProperties.OPEN)) {
+                setOpen(level, pos, state, true);
+            }
+        }
+        if (this.openTicks >= OPEN_LENGTH) {
+            this.openPos = null;
+            this.one.setDig(NONE, 0, 0, false);
+        }
+    }
+
+    /** Opens or shuts it the way a hand would, only slower and lower. */
+    static void setOpen(ServerLevel level, BlockPos pos, BlockState state, boolean open) {
+        level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, open), Block.UPDATE_CLIENTS | Block.UPDATE_IMMEDIATE);
+        SoundEvent sound;
+        if (state.getBlock() instanceof DoorBlock door) {
+            sound = open ? door.type().doorOpen() : door.type().doorClose();
+        } else if (state.getBlock() instanceof TrapDoorBlock) {
+            sound = open ? SoundEvents.WOODEN_TRAPDOOR_OPEN : SoundEvents.WOODEN_TRAPDOOR_CLOSE;
+        } else {
+            sound = open ? SoundEvents.FENCE_GATE_OPEN : SoundEvents.FENCE_GATE_CLOSE;
+        }
+        level.playSound(null, pos, sound, SoundSource.BLOCKS, open ? 1.0F : 0.5F, open ? 0.45F : 0.6F);
+        level.gameEvent(null, open ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, pos);
     }
 
     /** Stops whatever it was doing to a block: the cracks heal. */
@@ -101,60 +154,11 @@ public final class Burrow {
         }
         this.digPos = null;
         this.digState = null;
+        this.openPos = null;
         if (this.pause > 0 || this.one.getDigDirection() != NONE) {
             this.one.setDig(NONE, 0, 0, false);
         }
         this.pause = 0;
-    }
-
-    /**
-     * The first solid block in its way on the way to {@code next}: where its outstretched claws reach, over
-     * its head when it is climbing, in front of and below its head when it is going down, or around its body.
-     * Blocks it is already inside (spawned in a wall) don't count, so it can never get stuck in one.
-     */
-    private record Obstacle(BlockPos cell, int direction) {
-    }
-
-    @Nullable
-    private Obstacle findObstacle(ServerLevel level, Vec3 next) {
-        Vec3 pos = this.one.position();
-        Vec3 move = next.subtract(pos);
-        Vec3 flat = new Vec3(move.x, 0.0D, move.z);
-        Vec3 ahead = flat.lengthSqr() > 1.0E-6D ? flat.normalize() : Vec3.directionFromRotation(0.0F, this.one.getYRot());
-        // Along the way it is going, slope included: a tunnel up or down a hill follows the slope.
-        double steep = flat.lengthSqr() > 1.0E-6D ? move.y / flat.length() : 0.0D;
-        Vec3 along = steep > 2.0D || steep < -2.0D ? ahead : new Vec3(ahead.x, steep, ahead.z).normalize();
-        double scale = this.one.getVisualScale();
-        BlockPos insideLow = BlockPos.containing(pos.add(0.0D, 0.1D, 0.0D));
-        BlockPos insideHigh = BlockPos.containing(pos.add(0.0D, 0.6D, 0.0D));
-        Vec3 hips = next.add(0.0D, 0.45D, 0.0D);
-        Vec3[] probes = {
-                hips.add(along.scale(REACH * scale)),
-                hips.add(along.scale(HEAD * scale)),
-                // Straight up or down a shaft.
-                steep > 2.0D ? hips.add(ahead.scale(0.4D)).add(0.0D, 1.0D, 0.0D) : null,
-                steep < -2.0D ? hips.add(ahead.scale(0.4D)).add(0.0D, -1.0D, 0.0D) : null,
-                hips,
-        };
-        for (Vec3 probe : probes) {
-            if (probe == null) {
-                continue;
-            }
-            BlockPos cell = BlockPos.containing(probe);
-            if (cell.equals(insideLow) || cell.equals(insideHigh)) {
-                continue;
-            }
-            BlockState state = level.getBlockState(cell);
-            if (!state.getCollisionShape(level, cell).isEmpty() && state.getDestroySpeed(level, cell) >= 0.0F
-                    && ForgeEventFactory.onEntityDestroyBlock(this.one, cell, state)) {
-                // Right over or under it: a shaft. Anywhere ahead, even up or down a slope: in front of its face.
-                Vec3 to = Vec3.atCenterOf(cell).subtract(hips);
-                boolean shaft = to.horizontalDistance() < 1.2D;
-                int direction = shaft && to.y > 0.6D ? UP : shaft && to.y < -0.6D ? DOWN : FORWARD;
-                return new Obstacle(cell, direction);
-            }
-        }
-        return null;
     }
 
     private void start(ServerLevel level, BlockPos cell, int direction) {
