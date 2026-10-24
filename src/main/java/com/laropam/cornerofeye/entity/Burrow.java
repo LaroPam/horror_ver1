@@ -43,9 +43,9 @@ public final class Burrow {
     public static final float REACH = 2.9F;
     /** A hand on a door, then opening it. */
     public static final int OPEN = 5;
-    public static final int OPEN_LENGTH = 30;
+    public static final int OPEN_LENGTH = 40;
     /** When, into opening, the door actually moves. */
-    public static final int OPEN_AT = 16;
+    public static final int OPEN_AT = 24;
 
     private static final int STROKE = 7;
 
@@ -80,6 +80,8 @@ public final class Burrow {
 
     /** Keeps working on what it started. Call while {@link #isBusy()}. */
     void tick(ServerLevel level) {
+        // Its hands are busy: it doesn't drift on with whatever speed it came in with.
+        this.one.setDeltaMovement(Vec3.ZERO);
         if (this.pause > 0) {
             if (--this.pause == 0) {
                 this.one.setDig(NONE, 0, 0, false);
@@ -112,6 +114,7 @@ public final class Burrow {
         }
         this.openPos = pos.immutable();
         this.openTicks = 0;
+        this.one.setDeltaMovement(Vec3.ZERO);
         this.one.face(Vec3.atCenterOf(pos));
         this.one.setDig(OPEN, ++this.sequence, OPEN_LENGTH, false);
         return true;
@@ -181,6 +184,7 @@ public final class Burrow {
         this.digState = state;
         this.digTicks = 0;
         this.digLength = this.listen + (int) Mth.clamp(ticks, 10.0D, 200.0D);
+        this.one.setDeltaMovement(Vec3.ZERO);
 
         if (direction == FORWARD) {
             this.one.face(Vec3.atCenterOf(cell));

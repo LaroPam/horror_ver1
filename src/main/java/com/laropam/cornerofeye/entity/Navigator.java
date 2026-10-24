@@ -44,7 +44,9 @@ final class Navigator {
     }
 
     enum Result {
-        MOVING, BUSY, ARRIVED, STUCK
+        MOVING, BUSY, ARRIVED, STUCK,
+        /** Walled off by something it can neither get round nor break (bedrock): only the old way through is left. */
+        SEEP
     }
 
     private enum Cell {
@@ -76,6 +78,8 @@ final class Navigator {
     @Nullable
     private BlockPos goal;
     private boolean reachesGoal;
+    /** The way straight at the target starts with something it can't break. */
+    private boolean walledOff;
     private long plannedAt = -1000L;
     /** A door it opened and will quietly close behind itself once through. */
     @Nullable
@@ -106,21 +110,27 @@ final class Navigator {
         Step current = this.index < this.path.size() ? this.path.get(this.index) : null;
         boolean stale = level.getGameTime() - this.plannedAt > REPLAN_TICKS;
         boolean moved = this.goal == null || this.goal.distSqr(goalCell) > 4.0D;
-        if (current == null || stale || moved || !this.stillValid(level, current, canDig)) {
+        // Found no way at all a moment ago: don't search the whole area again every tick.
+        boolean hopeless = this.path.isEmpty() && !moved && level.getGameTime() - this.plannedAt < 10L;
+        if (!hopeless && (current == null || stale || moved || !this.stillValid(level, current, canDig))) {
             this.plan(level, goalCell, canDig);
             current = this.index < this.path.size() ? this.path.get(this.index) : null;
         }
         if (current == null) {
-            return this.reachesGoal ? Result.ARRIVED : Result.STUCK;
+            this.one.setDeltaMovement(Vec3.ZERO);
+            return this.reachesGoal ? Result.ARRIVED : this.walledOff ? Result.SEEP : Result.STUCK;
         }
 
         Vec3 hips = this.one.position().add(0.0D, 0.45D, 0.0D);
         // Something to do further along? Stop where its arms reach it.
         Step action = this.nextAction(level, canDig);
+        // A door ahead: it gets up and goes to it on its feet, the way a person would.
+        this.one.setGoingToDoor(action != null && action.kind() == Kind.OPEN
+                && Vec3.atCenterOf(action.pos()).distanceTo(hips) < 5.0D);
         if (action != null) {
             Vec3 at = Vec3.atCenterOf(action.pos());
             Vec3 to = at.subtract(hips);
-            if (action.kind() == Kind.OPEN && to.horizontalDistance() <= 1.7D && Math.abs(to.y) < 2.0D) {
+            if (action.kind() == Kind.OPEN && to.horizontalDistance() <= 1.4D && Math.abs(to.y) < 2.0D && !this.one.isCrawling()) {
                 BlockPos door = lowerHalf(level, action.pos());
                 if (burrow.open(level, door) && level.random.nextFloat() < 0.6F) {
                     this.doorToClose = door;
@@ -129,10 +139,16 @@ final class Navigator {
                 return Result.BUSY;
             }
             if (action.kind() == Kind.DIG) {
-                boolean shaft = to.horizontalDistance() < 1.2D;
+                BlockPos feet = feet(this.one.position());
+                boolean shaft = action.pos().getX() == feet.getX() && action.pos().getZ() == feet.getZ();
                 double reach = shaft ? 1.6D : Burrow.REACH * this.one.getVisualScale() + 0.5D;
-                if (to.length() <= reach || this.path.indexOf(action) == this.index) {
-                    int direction = shaft && to.y > 0.6D ? Burrow.UP : shaft && to.y < -0.6D ? Burrow.DOWN : Burrow.FORWARD;
+                // Only what its arms can get at in a straight line: not round a corner, through another wall.
+                boolean inReach = to.length() <= reach && this.openUpTo(level, hips, action.pos());
+                if (inReach || this.path.indexOf(action) == this.index) {
+                    if (!shaft && this.easeBack(level, at, hips, speed)) {
+                        return Result.MOVING;
+                    }
+                    int direction = !shaft ? Burrow.FORWARD : to.y > 0.0D ? Burrow.UP : Burrow.DOWN;
                     burrow.dig(level, action.pos(), direction);
                     this.markWalkable(action);
                     return Result.BUSY;
@@ -150,6 +166,7 @@ final class Navigator {
         if (!this.one.walkStep(waypoint, speed)) {
             // Light stepped into its way: think again.
             this.plannedAt = -1000L;
+            this.one.setDeltaMovement(Vec3.ZERO);
             return Result.STUCK;
         }
         if (this.one.position().distanceToSqr(waypoint) < 0.3D * 0.3D) {
@@ -166,6 +183,7 @@ final class Navigator {
         this.index = 0;
         this.path = Collections.emptyList();
         this.reachesGoal = false;
+        this.walledOff = false;
 
         BlockPos start = feet(this.one.position());
         Map<Long, Info> cells = new HashMap<>();
@@ -227,16 +245,71 @@ final class Navigator {
                 }
             }
         }
-        // Nowhere nearer than where it is: nothing to do.
-        if (best == startKey) {
-            return;
-        }
         List<Step> steps = new ArrayList<>();
         for (long key = best; key != startKey; key = from.get(key)) {
             steps.add(new Step(BlockPos.of(key), kinds.getOrDefault(key, Kind.WALK)));
         }
         Collections.reverse(steps);
+        if (!this.reachesGoal) {
+            // No whole way found (too far, too hard, or walled off with something it can't break). It doesn't
+            // start digging towards a guess, say under your floor: it walks as close as it can get, and from
+            // there goes straight at you.
+            for (int i = 0; i < steps.size(); i++) {
+                if (steps.get(i).kind() == Kind.DIG) {
+                    steps = new ArrayList<>(steps.subList(0, i));
+                    break;
+                }
+            }
+            if (steps.isEmpty() && canDig) {
+                steps = this.bore(level, start, goalCell);
+            }
+        }
         this.path = steps;
+    }
+
+    /**
+     * A few cells straight from {@code from} towards {@code to}, one axis at a time, opening and tearing through
+     * whatever is in the way. Stops short of light and of what it can't break.
+     */
+    private List<Step> bore(ServerLevel level, BlockPos from, BlockPos to) {
+        List<Step> steps = new ArrayList<>();
+        BlockPos pos = from;
+        for (int i = 0; i < 8 && distance(pos, to) > 1.5D; i++) {
+            // Of the moves that bring it closer, an open one first (up the wall to the right height before
+            // tearing in, rather than through the floor as well), then a door, then the longest way to go.
+            BlockPos next = null;
+            Info nextInfo = null;
+            int bestRank = Integer.MAX_VALUE;
+            int[] delta = {to.getX() - pos.getX(), to.getY() - pos.getY(), to.getZ() - pos.getZ()};
+            for (int axis = 0; axis < 3; axis++) {
+                if (delta[axis] == 0) {
+                    continue;
+                }
+                int sign = Integer.signum(delta[axis]);
+                BlockPos cell = pos.offset(axis == 0 ? sign : 0, axis == 1 ? sign : 0, axis == 2 ? sign : 0);
+                Info info = this.classify(level, cell, true);
+                int order = info.walkable() ? 0 : info.cell() == Cell.DOOR ? 1 : info.cell() == Cell.SOLID ? 2 : 3;
+                // Horizontal before vertical when it is just as far, so it doesn't dig shafts it needn't.
+                int rank = order * 1000 - Math.abs(delta[axis]) * 2 - (axis == 1 ? 0 : 1);
+                if (rank < bestRank) {
+                    bestRank = rank;
+                    next = cell;
+                    nextInfo = info;
+                }
+            }
+            Kind kind = nextInfo.walkable() ? Kind.WALK : switch (nextInfo.cell()) {
+                case DOOR -> Kind.OPEN;
+                case SOLID -> Kind.DIG;
+                default -> null;
+            };
+            if (kind == null) {
+                this.walledOff = steps.isEmpty() && nextInfo.cell() == Cell.BLOCKED;
+                break;
+            }
+            steps.add(new Step(next, kind));
+            pos = next;
+        }
+        return steps;
     }
 
     /**
@@ -384,6 +457,48 @@ final class Navigator {
             case OPEN -> info.cell() == Cell.DOOR || info.walkable();
             case DIG -> info.cell() == Cell.SOLID || info.walkable();
         };
+    }
+
+    /** Nothing but open space between {@code from} and the block at {@code cell}. */
+    private boolean openUpTo(ServerLevel level, Vec3 from, BlockPos cell) {
+        Vec3 delta = Vec3.atCenterOf(cell).subtract(from);
+        int samples = Math.max(1, (int) Math.ceil(delta.length() / 0.3D));
+        for (int i = 1; i < samples; i++) {
+            BlockPos at = BlockPos.containing(from.add(delta.scale(i / (double) samples)));
+            if (!at.equals(cell) && !this.classify(level, at, false).walkable()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Too close to the block it is about to tear at (it got there round a corner, or up a wall): it eases back,
+     * still facing it, until its claws are at the block's face and no further. Otherwise they would come out on
+     * your side before it has even started. @return true while it is still easing back
+     */
+    private boolean easeBack(ServerLevel level, Vec3 block, Vec3 hips, double speed) {
+        double want = Burrow.REACH * this.one.getVisualScale() + 0.3D;
+        Vec3 away = new Vec3(hips.x - block.x, 0.0D, hips.z - block.z);
+        double have = away.length();
+        if (have >= want - 0.35D || have < 1.0E-3D) {
+            return false;
+        }
+        away = away.scale(1.0D / have);
+        double room = 0.0D;
+        for (double k = 0.25D; k <= want - have + 1.0E-6D; k += 0.25D) {
+            if (!this.classify(level, BlockPos.containing(hips.add(away.scale(k))), false).walkable()) {
+                break;
+            }
+            room = k;
+        }
+        if (room < 0.25D) {
+            return false;
+        }
+        this.one.setCrawling(true);
+        this.one.face(block);
+        this.one.setDeltaMovement(away.scale(Math.min(room, speed * 0.6D)));
+        return true;
     }
 
     private boolean clearLine(ServerLevel level, Vec3 from, Vec3 to) {
