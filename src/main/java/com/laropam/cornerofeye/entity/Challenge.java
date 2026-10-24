@@ -13,7 +13,9 @@ public enum Challenge {
     /** Crouch and stay perfectly still until the timer runs out. */
     STILL,
     /** Something is coming up from below: get out of the water. */
-    LEAVE_WATER;
+    LEAVE_WATER,
+    /** A nightmare: find your bed in the dark before the time runs out, or before it finds you. */
+    FIND_BED;
 
     public String key() {
         return "cornerofeye.challenge." + this.name().toLowerCase(Locale.ROOT);

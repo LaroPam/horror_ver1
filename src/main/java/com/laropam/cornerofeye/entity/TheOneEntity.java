@@ -6,6 +6,7 @@ import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntManager;
 import com.laropam.cornerofeye.haunt.LightSuppression;
 import com.laropam.cornerofeye.haunt.Lights;
+import com.laropam.cornerofeye.haunt.Nightmares;
 import com.laropam.cornerofeye.haunt.Sight;
 import com.laropam.cornerofeye.haunt.SpotFinder;
 import com.laropam.cornerofeye.network.HorrorNetwork;
@@ -518,6 +519,12 @@ public class TheOneEntity extends Monster {
         }
     }
 
+    /** Switches to {@code phase} for exactly {@code ticks}: in a nightmare it doesn't wander off on its own. */
+    public void holdPhase(Phase phase, int ticks) {
+        this.startPhase(phase);
+        this.phaseTicks = ticks;
+    }
+
     /** Puts a countdown on the victim's screen. Failing it means being touched. */
     public void startChallenge(ServerPlayer victim, Challenge type, int ticks) {
         this.challenge = type;
@@ -657,6 +664,12 @@ public class TheOneEntity extends Monster {
     }
 
     public void touch(ServerPlayer victim) {
+        if (Nightmares.isDream(this.level())) {
+            // In a dream its touch doesn't kill. It wakes you.
+            this.discard();
+            Nightmares.end(victim, false);
+            return;
+        }
         HorrorNetwork.send(victim, HorrorPacket.Type.JUMPSCARE, 18);
         this.level().playSound(victim, this.getX(), this.getY(), this.getZ(), ModSounds.SCREAM.get(), SoundSource.HOSTILE, 1.5F, 1.0F);
         float damage = (float) (victim.getMaxHealth() * HorrorConfig.TOUCH_DAMAGE_FRACTION.get());

@@ -7,6 +7,7 @@ import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntEvent;
 import com.laropam.cornerofeye.haunt.HauntManager;
+import com.laropam.cornerofeye.haunt.Nightmares;
 import com.laropam.cornerofeye.haunt.Journal;
 import com.laropam.cornerofeye.haunt.Moments;
 import com.laropam.cornerofeye.haunt.Nights;
@@ -64,6 +65,10 @@ public final class HauntCommand {
                                 .executes(ctx -> event(ctx, ctx.getSource().getPlayerOrException()))
                                 .then(Commands.argument("target", EntityArgument.player())
                                         .executes(ctx -> event(ctx, EntityArgument.getPlayer(ctx, "target"))))))
+                .then(Commands.literal("dream")
+                        .executes(ctx -> dream(ctx, ctx.getSource().getPlayerOrException()))
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(ctx -> dream(ctx, EntityArgument.getPlayer(ctx, "target")))))
                 .then(Commands.literal("bloodmoon")
                         .then(Commands.literal("on").executes(ctx -> bloodMoon(ctx, true)))
                         .then(Commands.literal("off").executes(ctx -> bloodMoon(ctx, false))))
@@ -156,6 +161,15 @@ public final class HauntCommand {
             return 0;
         }
         ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.event", name, target.getDisplayName()), true);
+        return 1;
+    }
+
+    private static int dream(CommandContext<CommandSourceStack> ctx, ServerPlayer target) {
+        if (!Nightmares.begin(target, Math.max(HauntData.APPROACHING, data(ctx).getStage()))) {
+            ctx.getSource().sendFailure(Component.translatable("commands.cornerofeye.dream.failed"));
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.dream", target.getDisplayName()), true);
         return 1;
     }
 

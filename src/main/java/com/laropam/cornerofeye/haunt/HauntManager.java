@@ -335,7 +335,19 @@ public final class HauntManager {
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || !(event.player instanceof ServerPlayer player) || player.getSleepTimer() != 40) {
+        if (event.phase != TickEvent.Phase.END || !(event.player instanceof ServerPlayer player)) {
+            return;
+        }
+        if (player.getSleepTimer() == 70) {
+            // Deeper asleep: sometimes the room is still there, but it isn't your room.
+            HauntData data = HauntData.get(player.server);
+            float chance = data.getStage() >= HauntData.HUNTING ? 0.45F : 0.3F;
+            if (!data.isBanished() && data.getStage() >= HauntData.APPROACHING && player.getRandom().nextFloat() < chance) {
+                Nightmares.begin(player, data.getStage());
+            }
+            return;
+        }
+        if (player.getSleepTimer() != 40) {
             return;
         }
         HauntData data = HauntData.get(player.server);

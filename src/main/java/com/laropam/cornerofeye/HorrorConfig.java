@@ -43,6 +43,9 @@ public final class HorrorConfig {
     public static final ForgeConfigSpec.IntValue DAYS_BETWEEN_MASSACRES = BUILDER
             .comment("Minimum days between two village massacres.")
             .defineInRange("daysBetweenMassacres", 3, 0, 1000);
+    public static final ForgeConfigSpec.BooleanValue NIGHTMARES = BUILDER
+            .comment("From stage 2, sleeping can pull you into a nightmare: find your bed in the dark before it finds you.")
+            .define("nightmares", true);
 
     static {
         BUILDER.pop().push("monster");
