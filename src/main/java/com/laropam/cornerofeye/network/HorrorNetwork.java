@@ -15,7 +15,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public final class HorrorNetwork {
-    private static final String PROTOCOL = "4";
+    private static final String PROTOCOL = "5";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             CornerOfTheEye.id("main"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
 

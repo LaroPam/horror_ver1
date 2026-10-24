@@ -126,5 +126,11 @@
     "sounds": [
       "cornerofeye:timer_tick"
     ]
+  },
+  "night_bell": {
+    "subtitle": "subtitles.cornerofeye.night_bell",
+    "sounds": [
+      "cornerofeye:night_bell"
+    ]
   }
 }

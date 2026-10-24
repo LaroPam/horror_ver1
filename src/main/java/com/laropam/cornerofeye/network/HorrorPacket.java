@@ -31,7 +31,11 @@ public record HorrorPacket(Type type, BlockPos pos, int data) {
         /** The countdown is over: data = 1 survived, 0 failed, 2 cancelled. */
         CHALLENGE_END,
         /** A light it put out (data = 1), lit again (0), or forget them all (2). */
-        SMOTHER
+        SMOTHER,
+        /** Nightfall card: data = night number, pos.x = 1 under a blood moon. */
+        NIGHT_CARD,
+        /** data = 1 while the moon is red. */
+        BLOOD_MOON
     }
 
     public static final int DEFEATED = 99;

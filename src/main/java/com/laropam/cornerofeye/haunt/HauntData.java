@@ -24,6 +24,8 @@ public class HauntData extends SavedData {
     private long nextAppearance;
     private long nextMoment = -1;
     private long nextMassacre;
+    private int lastCardNight;
+    private boolean bloodMoon;
 
     public static HauntData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(HauntData::load, HauntData::new, NAME);
@@ -38,6 +40,8 @@ public class HauntData extends SavedData {
         data.nextAppearance = tag.getLong("NextAppearance");
         data.nextMoment = tag.contains("NextMoment") ? tag.getLong("NextMoment") : -1;
         data.nextMassacre = tag.getLong("NextMassacre");
+        data.lastCardNight = tag.getInt("LastCardNight");
+        data.bloodMoon = tag.getBoolean("BloodMoon");
         return data;
     }
 
@@ -50,6 +54,8 @@ public class HauntData extends SavedData {
         tag.putLong("NextAppearance", this.nextAppearance);
         tag.putLong("NextMoment", this.nextMoment);
         tag.putLong("NextMassacre", this.nextMassacre);
+        tag.putInt("LastCardNight", this.lastCardNight);
+        tag.putBoolean("BloodMoon", this.bloodMoon);
         return tag;
     }
 
@@ -142,6 +148,25 @@ public class HauntData extends SavedData {
         this.setDirty();
     }
 
+    /** Last night number announced on screen, so sleeping through a night doesn't repeat a card. */
+    public int getLastCardNight() {
+        return this.lastCardNight;
+    }
+
+    public void setLastCardNight(int night) {
+        this.lastCardNight = night;
+        this.setDirty();
+    }
+
+    public boolean isBloodMoon() {
+        return this.bloodMoon;
+    }
+
+    public void setBloodMoon(boolean bloodMoon) {
+        this.bloodMoon = bloodMoon;
+        this.setDirty();
+    }
+
     public void reset() {
         this.ticks = 0;
         this.stageOverride = -1;
@@ -150,6 +175,8 @@ public class HauntData extends SavedData {
         this.nextAppearance = 0;
         this.nextMoment = -1;
         this.nextMassacre = 0;
+        this.lastCardNight = 0;
+        this.bloodMoon = false;
         this.setDirty();
     }
 }

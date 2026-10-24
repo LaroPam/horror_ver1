@@ -457,7 +457,8 @@ public class TheOneEntity extends Monster {
         }
 
         Vec3 target = victim.position();
-        boolean blocked = !this.driftTowards(target, this.stage >= HauntData.HUNTING ? 0.24D : 0.18D, safe);
+        double speed = (this.stage >= HauntData.HUNTING ? 0.24D : 0.18D) * (HauntData.get(level.getServer()).isBloodMoon() ? 1.3D : 1.0D);
+        boolean blocked = !this.driftTowards(target, speed, safe);
         if (blocked || victimInLight) {
             // Waits at the edge of the light and works on the light instead.
             if (--this.snuffCooldown <= 0) {

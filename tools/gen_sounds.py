@@ -302,6 +302,16 @@ def timer_tick():
     return np.tanh(2.0 * (click + knock))
 
 
+def night_bell():
+    """A deep bell somewhere far off, slightly out of tune with itself."""
+    length = 6.0
+    tt = t(length)
+    partials = [(73.0, 1.0, 0.6), (146.8, 0.6, 0.8), (174.5, 0.45, 1.0), (219.0, 0.35, 1.3), (292.6, 0.25, 1.7), (367.0, 0.15, 2.2)]
+    bell = sum(np.sin(2 * np.pi * f * tt) * a * np.exp(-tt * d) for f, a, d in partials)
+    strike = bandpass(noise(length), 300, 3000) * np.exp(-tt * 40) * 0.4
+    return np.tanh(1.2 * (bell + strike)) * env(len(tt), 0.005, 1.5)
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     write("the_one_breath1", breath(0), -3)
@@ -323,4 +333,5 @@ if __name__ == "__main__":
     write("tinnitus", tinnitus(), -8)
     write("dread_loop", dread_loop(), -3)
     write("timer_tick", timer_tick(), -2)
+    write("night_bell", night_bell(), -2)
     print("sounds written to", os.path.normpath(OUT))

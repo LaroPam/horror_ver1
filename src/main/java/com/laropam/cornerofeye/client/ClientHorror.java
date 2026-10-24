@@ -90,6 +90,14 @@ public final class ClientHorror {
     private static long lastGlimpseTime;
     private static DreadLoopSound dreadLoop;
 
+    private static final int CARD_LENGTH = 150;
+    private static int cardNight;
+    private static boolean cardBlood;
+    private static int cardTicks;
+    private static boolean bloodMoon;
+    private static float blood;
+    private static float bloodO;
+
     private static int challengeType = -1;
     private static int challengeTicks;
     private static int challengeLength = 1;
@@ -136,6 +144,12 @@ public final class ClientHorror {
                 minecraft.getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.GLIMPSE.get(), 0.8F, 0.8F));
             }
             case CHALLENGE_END -> challengeType = -1;
+            case NIGHT_CARD -> {
+                cardNight = msg.data();
+                cardBlood = msg.pos().getX() == 1;
+                cardTicks = CARD_LENGTH;
+            }
+            case BLOOD_MOON -> bloodMoon = msg.data() == 1;
             case SMOTHER -> {
                 if (LightSuppression.clientUpdate(msg.pos(), msg.data()) && minecraft.level != null) {
                     BlockPos pos = msg.pos();
@@ -162,6 +176,14 @@ public final class ClientHorror {
         }
         flashO = flash;
         flash = Math.max(0.0F, flash - 0.06F);
+        if (cardTicks > 0) {
+            cardTicks--;
+        }
+        bloodO = blood;
+        long dayTime = level.getDayTime() % 24000L;
+        boolean nightSky = dayTime >= 12500L && dayTime < 23200L;
+        float bloodTarget = bloodMoon && nightSky && level.dimension() == Level.OVERWORLD ? 1.0F : 0.0F;
+        blood += Mth.clamp(bloodTarget - blood, -0.01F, 0.01F);
         if (jumpscareTicks > 0) {
             jumpscareTicks--;
         }
@@ -371,6 +393,9 @@ public final class ClientHorror {
         stage = 0;
         stepsLeft = 0;
         miningBlocksLeft = 0;
+        cardTicks = 0;
+        bloodMoon = false;
+        blood = bloodO = 0.0F;
         knockTicks = -1;
         jumpscareTicks = 0;
         challengeType = -1;
@@ -412,8 +437,19 @@ public final class ClientHorror {
         event.setCanceled(true);
     }
 
+    /** 0-1: how red the night is. */
+    static float bloodMoonAmount(float partialTick) {
+        return Mth.lerp(partialTick, bloodO, blood);
+    }
+
     @SubscribeEvent
     public static void onFogColor(ViewportEvent.ComputeFogColor event) {
+        float red = bloodMoonAmount((float) event.getPartialTick());
+        if (red > 0.01F) {
+            event.setRed(Mth.lerp(red, event.getRed(), Math.max(event.getRed(), 0.22F)));
+            event.setGreen(event.getGreen() * (1.0F - 0.75F * red));
+            event.setBlue(event.getBlue() * (1.0F - 0.75F * red));
+        }
         float amount = Mth.lerp((float) event.getPartialTick(), fogO, fog);
         if (!ClientConfig.FOG.get() || amount < 0.01F) {
             return;
@@ -464,6 +500,9 @@ public final class ClientHorror {
     }
 
     static void renderScare(ForgeGui gui, GuiGraphics graphics, float partialTick, int width, int height) {
+        if (cardTicks > 0) {
+            renderNightCard(graphics, partialTick, width, height);
+        }
         if (challengeType >= 0) {
             renderChallenge(graphics, partialTick, width, height);
         }
@@ -488,6 +527,36 @@ public final class ClientHorror {
         if (progress < 0.2F) {
             graphics.fill(0, 0, width, height, 0x66FF0000);
         }
+    }
+
+    /** "NIGHT 3", fading up out of the dark, trembling a little, then gone. */
+    private static void renderNightCard(GuiGraphics graphics, float partialTick, int width, int height) {
+        float age = CARD_LENGTH - cardTicks + partialTick;
+        float alpha = Mth.clamp(Math.min(age / 30.0F, (CARD_LENGTH - age) / 40.0F), 0.0F, 1.0F);
+        if (alpha < 0.02F) {
+            return;
+        }
+        Font font = Minecraft.getInstance().font;
+        boolean red = cardBlood || cardNight >= 7;
+        int a = (int) (alpha * 255.0F) << 24;
+        PoseStack pose = graphics.pose();
+        float y = height * 0.38F;
+        graphics.fillGradient(0, (int) y - 40, width, (int) y + 46, (int) (alpha * 120) << 24, (int) (alpha * 120) << 24);
+
+        pose.pushPose();
+        float jitter = RANDOM.nextFloat() < 0.08F ? (RANDOM.nextFloat() - 0.5F) * 4.0F : 0.0F;
+        pose.translate(width / 2.0F + jitter, y, 0.0F);
+        pose.scale(5.0F, 5.0F, 1.0F);
+        graphics.drawCenteredString(font, Component.translatable("cornerofeye.night.title", cardNight), 0, -4, a | (red ? 0xC81E1E : 0xD8D4CC));
+        pose.popPose();
+
+        Component sub = cardBlood ? Component.translatable("cornerofeye.night.blood")
+                : Component.translatable(cardNight <= 7 ? "cornerofeye.night.sub." + cardNight : "cornerofeye.night.sub.late");
+        pose.pushPose();
+        pose.translate(width / 2.0F, y + 26.0F, 0.0F);
+        pose.scale(1.5F, 1.5F, 1.0F);
+        graphics.drawCenteredString(font, sub.copy().withStyle(ChatFormatting.ITALIC), 0, 0, a | (red ? 0xA02020 : 0x9A9A9A));
+        pose.popPose();
     }
 
     /** The countdown: big seconds, what to do, and a bar running out. */

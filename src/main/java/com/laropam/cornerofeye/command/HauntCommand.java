@@ -9,6 +9,7 @@ import com.laropam.cornerofeye.haunt.HauntEvent;
 import com.laropam.cornerofeye.haunt.HauntManager;
 import com.laropam.cornerofeye.haunt.Journal;
 import com.laropam.cornerofeye.haunt.Moments;
+import com.laropam.cornerofeye.haunt.Nights;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -63,6 +64,9 @@ public final class HauntCommand {
                                 .executes(ctx -> event(ctx, ctx.getSource().getPlayerOrException()))
                                 .then(Commands.argument("target", EntityArgument.player())
                                         .executes(ctx -> event(ctx, EntityArgument.getPlayer(ctx, "target"))))))
+                .then(Commands.literal("bloodmoon")
+                        .then(Commands.literal("on").executes(ctx -> bloodMoon(ctx, true)))
+                        .then(Commands.literal("off").executes(ctx -> bloodMoon(ctx, false))))
                 .then(Commands.literal("reset").executes(HauntCommand::reset)));
     }
 
@@ -152,6 +156,14 @@ public final class HauntCommand {
             return 0;
         }
         ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.event", name, target.getDisplayName()), true);
+        return 1;
+    }
+
+    private static int bloodMoon(CommandContext<CommandSourceStack> ctx, boolean on) {
+        HauntData data = data(ctx);
+        data.setBloodMoon(on);
+        ctx.getSource().getServer().getPlayerList().getPlayers().forEach(player -> Nights.sync(player, data));
+        ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.bloodmoon", on ? "✔" : "✘"), true);
         return 1;
     }
 

@@ -510,6 +510,27 @@ def paint_unlit_torch():
     img.save(os.path.join(ROOT, "block", "unlit_torch.png"))
 
 
+def paint_blood_moon():
+    """A swollen red moon with darker scars across it."""
+    os.makedirs(os.path.join(ROOT, "environment"), exist_ok=True)
+    size = 32
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    for y in range(size):
+        for x in range(size):
+            r = math.hypot(x - 15.5, y - 15.5) / 15.5
+            if r < 1.0:
+                shade = 1.0 - 0.35 * r * r
+                base = (int(200 * shade), int(28 * shade), int(22 * shade))
+                img.putpixel((x, y), jitter(base, 10)[:3] + (int(255 * min(1.0, (1.0 - r) * 6)),))
+    for (cx, cy, cr) in [(11, 10, 3.5), (20, 18, 4.5), (9, 21, 2.5), (21, 8, 2.0)]:
+        for y in range(size):
+            for x in range(size):
+                if math.hypot(x - cx, y - cy) < cr and img.getpixel((x, y))[3] > 0:
+                    c = img.getpixel((x, y))
+                    img.putpixel((x, y), (int(c[0] * 0.6), int(c[1] * 0.5), int(c[2] * 0.5), c[3]))
+    img.save(os.path.join(ROOT, "environment", "blood_moon.png"))
+
+
 if __name__ == "__main__":
     for sub in ("entity", "gui", "item"):
         os.makedirs(os.path.join(ROOT, sub), exist_ok=True)
@@ -523,4 +544,5 @@ if __name__ == "__main__":
     paint_blood()
     paint_corpse_blood()
     paint_unlit_torch()
+    paint_blood_moon()
     print("textures written to", os.path.normpath(ROOT))

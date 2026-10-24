@@ -27,6 +27,7 @@ import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.server.ServerLifecycleHooks;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -90,6 +91,7 @@ public final class HauntManager {
         }
 
         int stage = data.getStage();
+        Nights.tick(server, data, stage);
         announceStageChange(server, data, stage);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             syncStage(player, stage);
@@ -205,7 +207,9 @@ public final class HauntManager {
             case HauntData.APPROACHING -> HorrorConfig.MINUTES_BETWEEN_MOMENTS_APPROACHING.get();
             default -> HorrorConfig.MINUTES_BETWEEN_MOMENTS_HUNTING.get();
         };
-        return (long) (minutes * 1200L * (0.75D + random.nextDouble() * 0.5D));
+        long ticks = (long) (minutes * 1200L * (0.75D + random.nextDouble() * 0.5D));
+        // Under a blood moon it doesn't wait as long.
+        return HauntData.get(ServerLifecycleHooks.getCurrentServer()).isBloodMoon() ? ticks / 2 : ticks;
     }
 
     /** It prefers whoever is alone in the dark. */
@@ -278,7 +282,7 @@ public final class HauntManager {
                 default -> 1200 + random.nextInt(1200);
             };
         };
-        data.setNextAppearance(data.getTicks() + delay);
+        data.setNextAppearance(data.getTicks() + (data.isBloodMoon() ? delay / 2 : delay));
 
         if (exit == Exit.WOUNDED && data.isBanished()) {
             one.playBanishEffects(level);
@@ -368,6 +372,9 @@ public final class HauntManager {
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         state(event.getEntity()).syncedStage = -1;
+        if (event.getEntity() instanceof ServerPlayer player) {
+            Nights.sync(player, HauntData.get(player.server));
+        }
     }
 
     @SubscribeEvent
@@ -380,6 +387,7 @@ public final class HauntManager {
         STATES.clear();
         TASKS.clear();
         lastStage = -1;
+        Nights.reset();
     }
 
     /** Runs one event right now, for commands. */
