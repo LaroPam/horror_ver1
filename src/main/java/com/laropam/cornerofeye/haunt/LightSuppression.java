@@ -222,6 +222,20 @@ public final class LightSuppression {
             return;
         }
         if (isSmothered(level, pos)) {
+            BlockState state = level.getBlockState(pos);
+            if (isDark(level, pos.asLong(), state) && !player.getAbilities().instabuild) {
+                // A lantern, glowstone, anything that glowed: what burned inside it is gone. A spark isn't enough,
+                // it takes a new flame, a torch of yours, given up for it.
+                ItemStack torch = findTorch(player);
+                if (torch == null) {
+                    event.setCanceled(true);
+                    event.setCancellationResult(InteractionResult.FAIL);
+                    level.playSound(null, pos, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 0.4F, 1.2F);
+                    player.displayClientMessage(Component.translatable("cornerofeye.message.needs_torch").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC), true);
+                    return;
+                }
+                torch.shrink(1);
+            }
             relight(serverLevel, pos);
             if (flint) {
                 level.playSound(null, pos, SoundEvents.FLINTANDSTEEL_USE, SoundSource.BLOCKS, 1.0F, 0.9F + level.random.nextFloat() * 0.2F);
@@ -235,6 +249,22 @@ public final class LightSuppression {
             event.setCanceled(true);
             event.setCancellationResult(InteractionResult.SUCCESS);
         }
+    }
+
+    /** A torch from the inventory, to give up for relighting something it put out. */
+    @javax.annotation.Nullable
+    private static ItemStack findTorch(Player player) {
+        for (ItemStack stack : player.getInventory().items) {
+            if (stack.is(Items.TORCH) || stack.is(Items.SOUL_TORCH)) {
+                return stack;
+            }
+        }
+        for (ItemStack stack : player.getInventory().offhand) {
+            if (stack.is(Items.TORCH) || stack.is(Items.SOUL_TORCH)) {
+                return stack;
+            }
+        }
+        return null;
     }
 
     /** What it put out is dead: break it and it crumbles. (A furnace still spills what was inside.) */

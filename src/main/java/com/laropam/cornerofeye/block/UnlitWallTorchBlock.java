@@ -8,20 +8,28 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.WallTorchBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.BlockHitResult;
 
 /** A wall torch it put out. Strike flint over it to light it again. */
 public class UnlitWallTorchBlock extends WallTorchBlock {
     public UnlitWallTorchBlock(Properties properties) {
         super(properties, ParticleTypes.SMOKE);
+        this.registerDefaultState(this.defaultBlockState().setValue(UnlitTorchBlock.SOUL, false));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        super.createBlockStateDefinition(builder);
+        builder.add(UnlitTorchBlock.SOUL);
     }
 
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-        return Relight.torch(level, pos, player, hand, Blocks.WALL_TORCH.defaultBlockState().setValue(FACING, state.getValue(FACING)));
+        return Relight.torch(level, pos, player, hand);
     }
 
     @Override

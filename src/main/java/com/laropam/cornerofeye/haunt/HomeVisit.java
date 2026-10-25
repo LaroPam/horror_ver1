@@ -2,6 +2,7 @@ package com.laropam.cornerofeye.haunt;
 
 import com.laropam.cornerofeye.HorrorConfig;
 import com.laropam.cornerofeye.block.MarkBlock;
+import com.laropam.cornerofeye.block.UnlitTorchBlock;
 import com.laropam.cornerofeye.network.HorrorNetwork;
 import com.laropam.cornerofeye.network.HorrorPacket;
 import com.laropam.cornerofeye.registry.ModBlocks;
@@ -128,8 +129,10 @@ public final class HomeVisit {
         List<BlockPos> torches = Lights.findAll(level, head, 10, 4, false);
         torches.removeIf(pos -> !Lights.isTorch(level.getBlockState(pos)));
         for (int i = 0; i < Math.min(torches.size(), row.size()); i++) {
+            BlockState torch = level.getBlockState(torches.get(i));
+            boolean soul = torch.is(Blocks.SOUL_TORCH) || torch.is(Blocks.SOUL_WALL_TORCH);
             level.setBlock(torches.get(i), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-            level.setBlock(row.get(i), ModBlocks.UNLIT_TORCH.get().defaultBlockState(), Block.UPDATE_ALL);
+            level.setBlock(row.get(i), ModBlocks.UNLIT_TORCH.get().defaultBlockState().setValue(UnlitTorchBlock.SOUL, soul), Block.UPDATE_ALL);
             done++;
         }
 

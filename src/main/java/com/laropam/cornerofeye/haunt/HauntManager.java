@@ -104,6 +104,12 @@ public final class HauntManager {
             HomeVisit.tick(player, data, stage);
             tickEvents(player, stage);
         }
+        TheOneEntity one = findTheOne(server.overworld());
+        if (one != null && !server.overworld().isPositionEntityTicking(one.blockPosition())) {
+            // Left behind where the world has stopped (loaded, but too far from anyone to move): it would stand there
+            // frozen, and as long as it is "here" it can't come for anyone else.
+            one.leave(Exit.LOST);
+        }
         directTheOne(server, data, stage);
     }
 
