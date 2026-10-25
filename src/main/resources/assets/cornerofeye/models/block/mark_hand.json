@@ -27,6 +27,15 @@
             16
           ],
           "texture": "#mark"
+        },
+        "south": {
+          "uv": [
+            16,
+            0,
+            0,
+            16
+          ],
+          "texture": "#mark"
         }
       }
     }

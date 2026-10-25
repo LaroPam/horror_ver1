@@ -88,6 +88,16 @@ public final class Marks {
         return placed >= 2;
     }
 
+    /** A long-fingered handprint where it pressed its palm: on a wall, a door, the outside of a window. */
+    public static boolean handOn(ServerLevel level, BlockPos pos, Direction facing) {
+        return markOn(level, pos, facing, MarkBlock.HAND);
+    }
+
+    /** One mark of {@code kind} ({@link MarkBlock#SCRATCH}, ...) on whatever is behind {@code pos}, facing out. */
+    public static boolean markOn(ServerLevel level, BlockPos pos, Direction facing, int kind) {
+        return HorrorConfig.ALLOW_BLOCK_CHANGES.get() && place(level, pos, facing, kind);
+    }
+
     /** Something written in blood on a wall at eye height. */
     public static boolean writing(ServerLevel level, BlockPos center, int minDist, int maxDist) {
         if (!HorrorConfig.ALLOW_BLOCK_CHANGES.get()) {

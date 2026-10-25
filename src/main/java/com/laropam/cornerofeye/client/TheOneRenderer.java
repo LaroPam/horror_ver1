@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.MobRenderer;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 
 import javax.annotation.Nullable;
 
@@ -47,6 +48,16 @@ public class TheOneRenderer extends MobRenderer<TheOneEntity, TheOneModel> {
             poseStack.translate(0.0F, entity.getBbHeight(), 0.0F);
             poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
         }
+        float crawl = entity.getCrawlAmount(partialTicks);
+        if (crawl > 0.0F) {
+            // On all fours it lies along whatever it is climbing, head first: up a tunnel, or straight up a wall
+            // like a spider, belly against the blocks rather than half a block off them. Going up it faces the
+            // wall, coming down it has its back to the drop, so the wall is ahead going up and behind going down.
+            float climb = entity.getClimb(partialTicks) * crawl;
+            float steep = Mth.clamp((Mth.abs(Mth.sin(climb)) - 0.7F) / 0.3F, 0.0F, 1.0F);
+            poseStack.translate(0.0F, 0.0F, -0.35F * steep * Math.signum(climb));
+            poseStack.mulPose(Axis.XP.rotation(climb));
+        }
     }
 
     @Nullable
@@ -73,7 +84,10 @@ public class TheOneRenderer extends MobRenderer<TheOneEntity, TheOneModel> {
     @Override
     protected void scale(TheOneEntity entity, PoseStack poseStack, float partialTick) {
         // A little taller every day.
-        float size = 1.0F + 0.22F * entity.getMenace();
-        poseStack.scale(size, size, size);
+        float size = entity.getVisualScale();
+        // Flat in a tunnel it is about fifteen pixels tall; where that doesn't fit, it flattens itself to.
+        float prone = entity.getProne(partialTick) * entity.getCrawlAmount(partialTick);
+        float fit = Math.min(1.0F, entity.getHeadroom(partialTick) * 16.0F / (15.0F * size));
+        poseStack.scale(size, size * Mth.lerp(prone, 1.0F, fit), size);
     }
 }

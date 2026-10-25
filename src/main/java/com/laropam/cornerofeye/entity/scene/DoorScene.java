@@ -30,17 +30,15 @@ public final class DoorScene implements SceneRunner {
     private final Vec3 outside;
     private final Vec3 doorway;
     private final Vec3 inside;
-    private final boolean roomToStand;
     private Vec3 challengeStart = Vec3.ZERO;
     private int challengeLength;
     private int challengeAge = -1;
 
-    public DoorScene(BlockPos door, Vec3 outside, Vec3 doorway, Vec3 inside, boolean roomToStand) {
+    public DoorScene(BlockPos door, Vec3 outside, Vec3 doorway, Vec3 inside) {
         this.door = door;
         this.outside = outside;
         this.doorway = doorway;
         this.inside = inside;
-        this.roomToStand = roomToStand;
     }
 
     @Override
@@ -68,9 +66,9 @@ public final class DoorScene implements SceneRunner {
             one.stepTo(this.doorway.lerp(this.inside, (age - CRAWL_TO_DOOR) / (double) CRAWL_INSIDE), true);
         } else if (age == CRAWL_TO_DOOR + CRAWL_INSIDE + 1) {
             one.face(victim.position());
-            if (this.roomToStand) {
-                one.setCrawling(false);
-            }
+            // It gets up as far as the room lets it: on the client it stays on all fours under a two-block
+            // ceiling and hunches under a three-block one (TheOneEntity.mustCrawl, getStoop).
+            one.setCrawling(false);
             one.setAnim(1);
             HorrorNetwork.playSoundTo(victim, ModSounds.BREATH.get(), SoundSource.HOSTILE, one.getEyePosition(), 1.0F, 0.7F);
         } else if (age == CRAWL_TO_DOOR + CRAWL_INSIDE + STAND_UP) {

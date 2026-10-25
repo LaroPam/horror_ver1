@@ -29,6 +29,9 @@
   "commands.cornerofeye.wounds": "Ранений теперь: %s",
   "commands.cornerofeye.dream.failed": "Сон не получится: кошмары выключены или негде поставить кровать",
   "subtitles.cornerofeye.warding_bell": "Звенит колокольчик",
+  "subtitles.cornerofeye.claw_scrape": "Когти скребут в стене",
+  "subtitles.cornerofeye.claw_glass": "Когти скребут по стеклу",
+  "subtitles.cornerofeye.glass_tap": "Кто-то стучит в стекло",
   "cornerofeye.message.doll_back": "Кукла снова у тебя в кармане.",
   "cornerofeye.message.doll_crumbled": "Старая кукла рассыпается в руках. Ей нужна только одна.",
   "cornerofeye.message.doll_burned": "Где-то сгорела кукла. Стало тише.",
@@ -235,5 +238,12 @@
   "cornerofeye.sign.8.1": "факелы",
   "cornerofeye.sign.9.0": "только",
   "cornerofeye.sign.9.1": "краем",
-  "cornerofeye.sign.9.2": "глаза"
+  "cornerofeye.sign.9.2": "глаза",
+  "commands.cornerofeye.visit": "Оно побывало дома у %s.",
+  "commands.cornerofeye.visit.failed": "Нет кровати, или кто-то дома.",
+  "commands.cornerofeye.morning": "Оно было у стены возле кровати %s.",
+  "cornerofeye.learned.light": "Оно запомнило твой свет. Ждать, пока он погаснет, оно больше не будет.",
+  "cornerofeye.learned.height": "Оно запомнило, где ты прячешься. Наверху. Оно не торопится.",
+  "cornerofeye.learned.bed": "Оно знает, где ты спишь.",
+  "cornerofeye.learned.gaze": "Оно знает, что ты высматриваешь его. Теперь оно держится за спиной."
 }

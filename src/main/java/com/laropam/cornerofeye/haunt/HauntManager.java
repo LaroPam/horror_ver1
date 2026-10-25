@@ -3,6 +3,7 @@ package com.laropam.cornerofeye.haunt;
 import com.laropam.cornerofeye.CornerOfTheEye;
 import com.laropam.cornerofeye.HorrorConfig;
 import com.laropam.cornerofeye.entity.Phase;
+import com.laropam.cornerofeye.entity.Scene;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.network.HorrorNetwork;
 import com.laropam.cornerofeye.network.HorrorPacket;
@@ -53,7 +54,6 @@ public final class HauntManager {
     private static int lastStage = -1;
 
     private static final class PlayerState {
-        int eventCooldown = 1200 + (int) (Math.random() * 1200);
         int syncedStage = -1;
     }
 
@@ -100,6 +100,7 @@ public final class HauntManager {
                 continue;
             }
             Journal.tick(player, data, stage);
+            HomeVisit.tick(player, data, stage);
             tickEvents(player, stage);
         }
         directTheOne(server, data, stage);
@@ -148,21 +149,7 @@ public final class HauntManager {
         if (player.level().dimension() != Level.OVERWORLD) {
             return;
         }
-        PlayerState state = state(player);
-        HauntContext context = HauntContext.of(player, stage, false);
-        double speed = HorrorConfig.EVENT_FREQUENCY.get() * (context.night() ? 1.5D : 1.0D) * (context.dark() ? 1.3D : 1.0D);
-        state.eventCooldown -= (int) Math.round(20 * speed);
-        if (state.eventCooldown > 0) {
-            return;
-        }
-        HauntEvent.runRandom(context);
-        int base = switch (stage) {
-            case HauntData.SILENCE -> 9000;
-            case HauntData.WATCHING -> 3600;
-            case HauntData.APPROACHING -> 2400;
-            default -> 1500;
-        };
-        state.eventCooldown = (int) (base * (0.6D + player.getRandom().nextDouble() * 0.8D));
+        Director.tick(player, stage);
     }
 
     // ---------------------------------------------------------------- the one
@@ -201,6 +188,12 @@ public final class HauntManager {
         appear(victim, stage, Phase.WATCH);
     }
 
+    /** True once it is free to show up again after it last left. */
+    static boolean appearanceDue(MinecraftServer server) {
+        HauntData data = HauntData.get(server);
+        return data.getTicks() >= data.getNextAppearance();
+    }
+
     /** Ticks until the next moment: the configured average for this stage, give or take a quarter. */
     private static long momentInterval(int stage, RandomSource random) {
         int minutes = switch (stage) {
@@ -228,6 +221,10 @@ public final class HauntManager {
             }
             HauntContext context = HauntContext.of(player, 0, false);
             if (!context.night() && !(context.underground() && context.dark())) {
+                continue;
+            }
+            // Only once the build-up for them has run its course.
+            if (!Director.wantsEncounter(player)) {
                 continue;
             }
             boolean alone = level.getNearestPlayer(player.getX(), player.getY(), player.getZ(), 24.0D,
@@ -260,10 +257,23 @@ public final class HauntManager {
             min = 10.0D;
             max = 16.0D;
         }
-        // At the edge of the screen, somewhere you could see it if you happened to glance that way.
-        Vec3 spot = SpotFinder.find(level, victim, min, max, 60.0F, 20.0F, 12, 24,
-                pos -> SpotFinder.isDark(level, pos, safe) && Sight.clearLine(level, victim, pos.add(0.0D, 2.6D, 0.0D))
-                        && Sight.gazeDot(victim, pos.add(0.0D, 1.6D, 0.0D)) < 0.9D);
+        Vec3 spot = null;
+        BlockPos below = SpotFinder.findGround(level, victim.blockPosition().below(), 2) == null
+                ? SpotFinder.findGround(level, victim.blockPosition().below(12), 10) : null;
+        if (below != null && victim.getY() - below.getY() >= 5.0D && Habits.get(victim, Habits.Habit.HEIGHT) >= 0.4F) {
+            // It knows you go up high. It comes straight to the foot of wherever you are, and looks up.
+            double height = victim.getY() - below.getY();
+            spot = SpotFinder.find(level, victim, 2.0D, 4.0D + height, 0.0F, 180.0F, (int) height + 4, 32,
+                    pos -> pos.y < victim.getY() - 4.0D && SpotFinder.isDark(level, pos, safe) && Sight.clearLine(level, victim, pos.add(0.0D, 1.5D, 0.0D)));
+        }
+        if (spot == null) {
+            // At the edge of the screen, somewhere you could see it if you happened to glance that way; further round
+            // behind you if it has learned that you look for it.
+            float offset = 60.0F + 70.0F * Habits.get(victim, Habits.Habit.GAZE);
+            spot = SpotFinder.find(level, victim, min, max, offset, 20.0F, 12, 24,
+                    pos -> SpotFinder.isDark(level, pos, safe) && Sight.clearLine(level, victim, pos.add(0.0D, 2.6D, 0.0D))
+                            && Sight.gazeDot(victim, pos.add(0.0D, 1.6D, 0.0D)) < 0.9D);
+        }
         if (spot == null) {
             spot = SpotFinder.find(level, victim, min, max, 90.0F, 90.0F, 12, 24, pos -> SpotFinder.isDark(level, pos, safe));
         }
@@ -293,6 +303,10 @@ public final class HauntManager {
     /** Called when it leaves the world for any reason. */
     public static void onGone(ServerLevel level, TheOneEntity one, Exit exit) {
         HauntData data = HauntData.get(level.getServer());
+        ServerPlayer victim = one.getVictimId() == null ? null : level.getServer().getPlayerList().getPlayer(one.getVictimId());
+        if (victim != null) {
+            Director.encounterEnded(victim, exit == Exit.TOUCHED || exit == Exit.WOUNDED);
+        }
         RandomSource random = level.random;
         int stage = one.getStage();
         long delay = switch (exit) {
@@ -398,8 +412,27 @@ public final class HauntManager {
         }
         // Woke up in the morning after a full night.
         HauntData data = HauntData.get(player.server);
-        if (data.isBanished() || data.getStage() < HauntData.APPROACHING || !HorrorConfig.ALLOW_BLOCK_CHANGES.get()
-                || player.getRandom().nextFloat() > 0.3F) {
+        BlockPos sleptIn = HomeVisit.bedOf(player);
+        if (sleptIn != null) {
+            Habits.sleptIn(player, sleptIn);
+        }
+        // The same bed every night: it knows where to find you in the morning.
+        float sameBed = Habits.get(player, Habits.Habit.BED);
+        if (data.isBanished() || data.getStage() < HauntData.APPROACHING || player.getRandom().nextFloat() > 0.35F + 0.35F * sameBed) {
+            return;
+        }
+        if (findTheOne(player.serverLevel()) == null && player.getRandom().nextFloat() < 0.45F + 0.3F * sameBed) {
+            // You are awake and you can't move.
+            schedule(10, () -> Moments.start(player, data.getStage(), Scene.PARALYSIS, true));
+            return;
+        }
+        if (!HorrorConfig.ALLOW_BLOCK_CHANGES.get()) {
+            return;
+        }
+        BlockPos bed = HomeVisit.bedOf(player);
+        if (bed != null && player.getRandom().nextBoolean()) {
+            // Cracks in the wall by the bed, claw marks over them. It was right here, on the other side.
+            schedule(5, () -> Gnawing.byTheBed(player.serverLevel(), bed));
             return;
         }
         schedule(5, () -> {
@@ -436,6 +469,7 @@ public final class HauntManager {
         STATES.clear();
         TASKS.clear();
         lastStage = -1;
+        Director.reset();
         Nights.reset();
         Finale.reset();
     }

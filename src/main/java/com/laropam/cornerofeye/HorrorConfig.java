@@ -60,6 +60,13 @@ public final class HorrorConfig {
     public static final ForgeConfigSpec.IntValue WOUNDS_TO_BANISH = BUILDER
             .comment("How many times it has to be caught by the Lantern of Revelation before it leaves for good.")
             .defineInRange("woundsToBanish", 3, 1, 100);
+    public static final ForgeConfigSpec.BooleanValue DIG_THROUGH_WALLS = BUILDER
+            .comment("When it comes for you, it tears its way through blocks instead of passing through them. Needs allowBlockChanges",
+                    "and the mobGriefing game rule. Off: it passes through walls without breaking anything.")
+            .define("digThroughWalls", true);
+    public static final ForgeConfigSpec.BooleanValue DUG_BLOCKS_DROP = BUILDER
+            .comment("Blocks it tears out drop as items. Off: they are just gone (chests still spill what was in them).")
+            .define("dugBlocksDrop", false);
     public static final ForgeConfigSpec.BooleanValue ECHOES = BUILDER
             .comment("After it is banished, rare harmless echoes at night: a footstep, a whisper, animals staring at nothing.")
             .define("echoes", true);

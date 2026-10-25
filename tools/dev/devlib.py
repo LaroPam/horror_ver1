@@ -28,6 +28,21 @@ def shot(name):
     return os.path.join(OUT, name + ".png")
 
 
+def record(name, seconds, fps=20):
+    """Starts recording the screen to build/devshots/<name>.mp4 in the background; wait() on the result."""
+    return subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "x11grab", "-framerate", str(fps), "-video_size", SIZE,
+                             "-i", ":99", "-t", str(seconds), "-pix_fmt", "yuv420p", os.path.join(OUT, name + ".mp4")], env=ENV)
+
+
+def to_gif(name, width=640, fps=15, out=None):
+    """Turns build/devshots/<name>.mp4 into a palette-optimised GIF."""
+    src = os.path.join(OUT, name + ".mp4")
+    out = out or os.path.join(OUT, name + ".gif")
+    graph = f"fps={fps},scale={width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=160:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4"
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", src, "-vf", graph, out])
+    return out
+
+
 def grid(names, out, cols=3):
     from PIL import Image
     ims = [Image.open(os.path.join(OUT, n + ".png")).resize((427, 240)) for n in names]
@@ -73,3 +88,21 @@ def pose(x, y, z, yaw, nbt):
 
 def merge(nbt):
     return rcon(f"data merge entity @e[type=cornerofeye:the_one,limit=1] {{{nbt}}}")
+
+
+def frames(name, times, out=None, cols=4):
+    """A contact sheet of stills from build/devshots/<name>.mp4 at the given seconds."""
+    from PIL import Image
+    shots = []
+    for i, t in enumerate(times):
+        path = os.path.join(OUT, f"_{name}_{i}.png")
+        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-ss", str(t), "-i", os.path.join(OUT, name + ".mp4"),
+                        "-frames:v", "1", path])
+        shots.append(Image.open(path).convert("RGB").resize((427, 240)))
+    rows = (len(shots) + cols - 1) // cols
+    sheet = Image.new("RGB", (427 * cols, 240 * rows))
+    for k, im in enumerate(shots):
+        sheet.paste(im, ((k % cols) * 427, (k // cols) * 240))
+    out = out or os.path.join(OUT, name + "_sheet.png")
+    sheet.save(out)
+    return out

@@ -7,11 +7,16 @@ import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntEvent;
 import com.laropam.cornerofeye.haunt.HauntManager;
+import com.laropam.cornerofeye.haunt.Director;
+import com.laropam.cornerofeye.haunt.Gnawing;
+import com.laropam.cornerofeye.haunt.Habits;
+import com.laropam.cornerofeye.haunt.HomeVisit;
 import com.laropam.cornerofeye.haunt.Nightmares;
 import com.laropam.cornerofeye.haunt.Journal;
 import com.laropam.cornerofeye.haunt.Moments;
 import com.laropam.cornerofeye.haunt.Nights;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -20,6 +25,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -72,6 +78,27 @@ public final class HauntCommand {
                         .executes(ctx -> dream(ctx, ctx.getSource().getPlayerOrException()))
                         .then(Commands.argument("target", EntityArgument.player())
                                 .executes(ctx -> dream(ctx, EntityArgument.getPlayer(ctx, "target")))))
+                .then(Commands.literal("visit")
+                        .executes(ctx -> visit(ctx, ctx.getSource().getPlayerOrException()))
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(ctx -> visit(ctx, EntityArgument.getPlayer(ctx, "target")))))
+                .then(Commands.literal("director")
+                        .executes(ctx -> director(ctx, ctx.getSource().getPlayerOrException(), false))
+                        .then(Commands.literal("next").executes(ctx -> director(ctx, ctx.getSource().getPlayerOrException(), true)))
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(ctx -> director(ctx, EntityArgument.getPlayer(ctx, "target"), false))
+                                .then(Commands.literal("next").executes(ctx -> director(ctx, EntityArgument.getPlayer(ctx, "target"), true)))))
+                .then(Commands.literal("habit")
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .then(Commands.argument("habit", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(
+                                                Arrays.stream(Habits.Habit.values()).map(habit -> habit.name().toLowerCase(Locale.ROOT)), builder))
+                                        .then(Commands.argument("value", FloatArgumentType.floatArg(0.0F, 1.0F))
+                                                .executes(HauntCommand::habit)))))
+                .then(Commands.literal("morning")
+                        .executes(ctx -> morning(ctx, ctx.getSource().getPlayerOrException()))
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(ctx -> morning(ctx, EntityArgument.getPlayer(ctx, "target")))))
                 .then(Commands.literal("bloodmoon")
                         .then(Commands.literal("on").executes(ctx -> bloodMoon(ctx, true)))
                         .then(Commands.literal("off").executes(ctx -> bloodMoon(ctx, false))))
@@ -179,6 +206,55 @@ public final class HauntCommand {
             return 0;
         }
         ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.dream", target.getDisplayName()), true);
+        return 1;
+    }
+
+    /** It goes through the target's home right now (as long as nobody is in it). */
+    private static int visit(CommandContext<CommandSourceStack> ctx, ServerPlayer target) {
+        BlockPos bed = HomeVisit.bedOf(target);
+        if (bed == null || !HomeVisit.visit(target.server.overworld(), bed)) {
+            ctx.getSource().sendFailure(Component.translatable("commands.cornerofeye.visit.failed"));
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.visit", target.getDisplayName()), true);
+        return 1;
+    }
+
+    /** Where the pacing is for you: quiet, building up, ready for it, or it is here. Optionally skips ahead. */
+    private static int director(CommandContext<CommandSourceStack> ctx, ServerPlayer target, boolean next) {
+        if (next) {
+            Director.advance(target);
+        }
+        String state = Director.describe(target);
+        ctx.getSource().sendSuccess(() -> Component.literal(state), false);
+        return 1;
+    }
+
+    /** Teaches it a habit of the target's, for testing what it does with it. */
+    private static int habit(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+        String name = StringArgumentType.getString(ctx, "habit");
+        Habits.Habit habit;
+        try {
+            habit = Habits.Habit.valueOf(name.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            ctx.getSource().sendFailure(Component.translatable("commands.cornerofeye.unknown", name));
+            return 0;
+        }
+        Habits.set(target, habit, FloatArgumentType.getFloat(ctx, "value"));
+        String state = Director.describe(target);
+        ctx.getSource().sendSuccess(() -> Component.literal(state), false);
+        return 1;
+    }
+
+    /** What you may wake up to: cracks and claw marks on the wall by your bed. */
+    private static int morning(CommandContext<CommandSourceStack> ctx, ServerPlayer target) {
+        BlockPos bed = HomeVisit.bedOf(target);
+        if (bed == null || !Gnawing.byTheBed(target.server.overworld(), bed)) {
+            ctx.getSource().sendFailure(Component.translatable("commands.cornerofeye.visit.failed"));
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.morning", target.getDisplayName()), true);
         return 1;
     }
 

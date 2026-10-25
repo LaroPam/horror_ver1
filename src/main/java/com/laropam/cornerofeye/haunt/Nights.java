@@ -57,6 +57,7 @@ public final class Nights {
         for (ServerPlayer player : overworld.players()) {
             sync(player, data);
             Doll.nightfall(player);
+            Habits.nightfall(player);
             if (newNight || blood) {
                 int card = Finale.isDue(data) ? CARD_FINALE : blood ? CARD_BLOOD : CARD_NIGHT;
                 HorrorNetwork.send(player, HorrorPacket.Type.NIGHT_CARD, new BlockPos(card, 0, 0), night);

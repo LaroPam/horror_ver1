@@ -29,6 +29,9 @@
   "commands.cornerofeye.wounds": "Wounds set to %s",
   "commands.cornerofeye.dream.failed": "No dream here: nightmares are off, or no room for a bed",
   "subtitles.cornerofeye.warding_bell": "A little bell rings",
+  "subtitles.cornerofeye.claw_scrape": "Claws scrape inside the wall",
+  "subtitles.cornerofeye.claw_glass": "Claws scrape down the glass",
+  "subtitles.cornerofeye.glass_tap": "Something taps on the glass",
   "cornerofeye.message.doll_back": "The doll is back in your pocket.",
   "cornerofeye.message.doll_crumbled": "The old doll falls apart in your hands. It only wants one of you.",
   "cornerofeye.message.doll_burned": "Somewhere, a doll burned. It is quieter now.",
@@ -235,5 +238,12 @@
   "cornerofeye.sign.8.1": "torches",
   "cornerofeye.sign.9.0": "only from",
   "cornerofeye.sign.9.1": "the corner",
-  "cornerofeye.sign.9.2": "of your eye"
+  "cornerofeye.sign.9.2": "of your eye",
+  "commands.cornerofeye.visit": "It went through %s's home.",
+  "commands.cornerofeye.visit.failed": "No bed to visit, or someone is home.",
+  "commands.cornerofeye.morning": "It was at the wall by %s's bed.",
+  "cornerofeye.learned.light": "It remembers your light. It will not wait for it to go out.",
+  "cornerofeye.learned.height": "It remembers where you hide. Up high. It is in no hurry.",
+  "cornerofeye.learned.bed": "It knows where you sleep.",
+  "cornerofeye.learned.gaze": "It knows you are looking for it. It keeps behind you now."
 }
