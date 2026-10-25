@@ -7,6 +7,7 @@ import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntEvent;
 import com.laropam.cornerofeye.haunt.HauntManager;
+import com.laropam.cornerofeye.haunt.Director;
 import com.laropam.cornerofeye.haunt.Gnawing;
 import com.laropam.cornerofeye.haunt.HomeVisit;
 import com.laropam.cornerofeye.haunt.Nightmares;
@@ -79,6 +80,12 @@ public final class HauntCommand {
                         .executes(ctx -> visit(ctx, ctx.getSource().getPlayerOrException()))
                         .then(Commands.argument("target", EntityArgument.player())
                                 .executes(ctx -> visit(ctx, EntityArgument.getPlayer(ctx, "target")))))
+                .then(Commands.literal("director")
+                        .executes(ctx -> director(ctx, ctx.getSource().getPlayerOrException(), false))
+                        .then(Commands.literal("next").executes(ctx -> director(ctx, ctx.getSource().getPlayerOrException(), true)))
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(ctx -> director(ctx, EntityArgument.getPlayer(ctx, "target"), false))
+                                .then(Commands.literal("next").executes(ctx -> director(ctx, EntityArgument.getPlayer(ctx, "target"), true)))))
                 .then(Commands.literal("morning")
                         .executes(ctx -> morning(ctx, ctx.getSource().getPlayerOrException()))
                         .then(Commands.argument("target", EntityArgument.player())
@@ -201,6 +208,16 @@ public final class HauntCommand {
             return 0;
         }
         ctx.getSource().sendSuccess(() -> Component.translatable("commands.cornerofeye.visit", target.getDisplayName()), true);
+        return 1;
+    }
+
+    /** Where the pacing is for you: quiet, building up, ready for it, or it is here. Optionally skips ahead. */
+    private static int director(CommandContext<CommandSourceStack> ctx, ServerPlayer target, boolean next) {
+        if (next) {
+            Director.advance(target);
+        }
+        String state = Director.describe(target);
+        ctx.getSource().sendSuccess(() -> Component.literal(state), false);
         return 1;
     }
 

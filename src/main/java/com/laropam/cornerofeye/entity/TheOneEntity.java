@@ -2,6 +2,7 @@ package com.laropam.cornerofeye.entity;
 
 import com.laropam.cornerofeye.HorrorConfig;
 import com.laropam.cornerofeye.haunt.Doll;
+import com.laropam.cornerofeye.haunt.Director;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntManager;
 import com.laropam.cornerofeye.haunt.LightSuppression;
@@ -193,6 +194,7 @@ public class TheOneEntity extends Monster {
         one.setStage(level, stage);
         one.startPhase(phase);
         level.addFreshEntity(one);
+        Director.encounterStarted(victim);
         return one;
     }
 
@@ -213,6 +215,7 @@ public class TheOneEntity extends Monster {
         one.sceneRunner = runner;
         one.startPhase(Phase.SCENE);
         level.addFreshEntity(one);
+        Director.encounterStarted(victim);
         runner.start(one, level, victim);
         return one;
     }
@@ -344,6 +347,11 @@ public class TheOneEntity extends Monster {
 
     public boolean isHaunting(Player player) {
         return player.getUUID().equals(this.victimId);
+    }
+
+    @Nullable
+    public UUID getVictimId() {
+        return this.victimId;
     }
 
     private void startPhase(Phase phase) {

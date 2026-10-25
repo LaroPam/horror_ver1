@@ -278,6 +278,7 @@ public final class Nightmares {
 
     private static void finish(ServerPlayer player, Dream dream, boolean won) {
         ServerLevel level = player.serverLevel();
+        Director.encounterEnded(player, !won);
         for (TheOneEntity one : level.getEntities(ModEntities.THE_ONE.get(), one -> one.distanceTo(player) < 128.0D)) {
             one.discard();
         }

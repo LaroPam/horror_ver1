@@ -54,7 +54,6 @@ public final class HauntManager {
     private static int lastStage = -1;
 
     private static final class PlayerState {
-        int eventCooldown = 1200 + (int) (Math.random() * 1200);
         int syncedStage = -1;
     }
 
@@ -150,21 +149,7 @@ public final class HauntManager {
         if (player.level().dimension() != Level.OVERWORLD) {
             return;
         }
-        PlayerState state = state(player);
-        HauntContext context = HauntContext.of(player, stage, false);
-        double speed = HorrorConfig.EVENT_FREQUENCY.get() * (context.night() ? 1.5D : 1.0D) * (context.dark() ? 1.3D : 1.0D);
-        state.eventCooldown -= (int) Math.round(20 * speed);
-        if (state.eventCooldown > 0) {
-            return;
-        }
-        HauntEvent.runRandom(context);
-        int base = switch (stage) {
-            case HauntData.SILENCE -> 9000;
-            case HauntData.WATCHING -> 3600;
-            case HauntData.APPROACHING -> 2400;
-            default -> 1500;
-        };
-        state.eventCooldown = (int) (base * (0.6D + player.getRandom().nextDouble() * 0.8D));
+        Director.tick(player, stage);
     }
 
     // ---------------------------------------------------------------- the one
@@ -203,6 +188,12 @@ public final class HauntManager {
         appear(victim, stage, Phase.WATCH);
     }
 
+    /** True once it is free to show up again after it last left. */
+    static boolean appearanceDue(MinecraftServer server) {
+        HauntData data = HauntData.get(server);
+        return data.getTicks() >= data.getNextAppearance();
+    }
+
     /** Ticks until the next moment: the configured average for this stage, give or take a quarter. */
     private static long momentInterval(int stage, RandomSource random) {
         int minutes = switch (stage) {
@@ -230,6 +221,10 @@ public final class HauntManager {
             }
             HauntContext context = HauntContext.of(player, 0, false);
             if (!context.night() && !(context.underground() && context.dark())) {
+                continue;
+            }
+            // Only once the build-up for them has run its course.
+            if (!Director.wantsEncounter(player)) {
                 continue;
             }
             boolean alone = level.getNearestPlayer(player.getX(), player.getY(), player.getZ(), 24.0D,
@@ -295,6 +290,10 @@ public final class HauntManager {
     /** Called when it leaves the world for any reason. */
     public static void onGone(ServerLevel level, TheOneEntity one, Exit exit) {
         HauntData data = HauntData.get(level.getServer());
+        ServerPlayer victim = one.getVictimId() == null ? null : level.getServer().getPlayerList().getPlayer(one.getVictimId());
+        if (victim != null) {
+            Director.encounterEnded(victim, exit == Exit.TOUCHED || exit == Exit.WOUNDED);
+        }
         RandomSource random = level.random;
         int stage = one.getStage();
         long delay = switch (exit) {
@@ -451,6 +450,7 @@ public final class HauntManager {
         STATES.clear();
         TASKS.clear();
         lastStage = -1;
+        Director.reset();
         Nights.reset();
         Finale.reset();
     }
