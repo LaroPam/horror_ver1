@@ -264,5 +264,9 @@
   "cornerofeye.camp.diary.2.4": "Оно уже за",
   "block.cornerofeye.bell_string": "Колокольчик на нитке",
   "block.cornerofeye.bell_string.tooltip": "Повесь в проёме. Зазвенит, когда оно пройдёт мимо.",
-  "subtitles.cornerofeye.bell_string": "Звенит колокольчик на нитке"
+  "subtitles.cornerofeye.bell_string": "Звенит колокольчик на нитке",
+  "cornerofeye.message.taken": "Голос %s оборвался где-то в темноте.",
+  "cornerofeye.message.taken_back": "Свет вернул %s.",
+  "cornerofeye.message.dream_start_taken": "Что-то держит тебя за ногу. Под тобой скребёт земля. Потом — ничего.",
+  "cornerofeye.message.dream_won_taken": "Оно отпускает. Ты лежишь на земле там, куда оно тебя дотащило, и в руке что-то зажато."
 }

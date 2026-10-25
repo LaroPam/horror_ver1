@@ -178,6 +178,10 @@ public final class HauntManager {
         if (victim == null) {
             return;
         }
+        // Out on your own at night, with friends somewhere: it may take you.
+        if (Abduction.tryTake(victim, stage, false)) {
+            return;
+        }
         // A doll left out for it in the dark: it can't help going to that first.
         if (Moments.lureNear(victim) != null && Moments.start(victim, stage, Scene.LURED, false) != null) {
             return;
