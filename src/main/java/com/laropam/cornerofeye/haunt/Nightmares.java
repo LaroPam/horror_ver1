@@ -240,9 +240,15 @@ public final class Nightmares {
         for (Iterator<Map.Entry<UUID, Dream>> it = DREAMS.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<UUID, Dream> entry = it.next();
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
-            if (player == null || !isDream(player.level())) {
+            if (player == null) {
                 // Logged out mid-dream: they are brought back when they log in again.
                 it.remove();
+                continue;
+            }
+            if (!isDream(player.level())) {
+                // Taken out of it some other way (a command, another mod's teleport): let them go where they are.
+                it.remove();
+                escaped(player);
                 continue;
             }
             Dream dream = entry.getValue();
@@ -318,6 +324,18 @@ public final class Nightmares {
             player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 200, 0));
             player.sendSystemMessage(Component.translatable("cornerofeye.message.dream_lost").withStyle(ChatFormatting.DARK_RED, ChatFormatting.ITALIC));
         }
+    }
+
+    /** Out of the dream without waking (teleported away): no scare, no prize, just their own game mode back. */
+    private static void escaped(ServerPlayer player) {
+        Director.encounterEnded(player, false);
+        Abduction.released(player);
+        HorrorNetwork.send(player, HorrorPacket.Type.CHALLENGE_END, 2);
+        CompoundTag persisted = persisted(player);
+        CompoundTag back = persisted.getCompound(TAG);
+        player.setGameMode(back.contains("Mode") ? GameType.byId(back.getInt("Mode")) : GameType.SURVIVAL);
+        persisted.remove(TAG);
+        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
     }
 
     /** When this dream ends, they come back at {@code pos} instead of where they were when it began. */
