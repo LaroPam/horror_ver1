@@ -245,5 +245,21 @@
   "cornerofeye.learned.light": "It remembers your light. It will not wait for it to go out.",
   "cornerofeye.learned.height": "It remembers where you hide. Up high. It is in no hurry.",
   "cornerofeye.learned.bed": "It knows where you sleep.",
-  "cornerofeye.learned.gaze": "It knows you are looking for it. It keeps behind you now."
+  "cornerofeye.learned.gaze": "It knows you are looking for it. It keeps behind you now.",
+  "cornerofeye.camp.diary.title": "Someone's notes",
+  "cornerofeye.camp.diary.0.0": "Day 3.\n\nLight helps. It won't come near while the torches burn. So I will keep torches burning. Lots of torches.",
+  "cornerofeye.camp.diary.0.1": "Day 5.\n\nThe torches go out by themselves. They don't burn down, they go out, as if someone pinched the flame. I saw it at the edge of the light. Only from the corner of my eye.",
+  "cornerofeye.camp.diary.0.2": "Day 6.\n\nLook straight at it and it isn't there. I stopped looking straight at it.\n\nThat is worse.",
+  "cornerofeye.camp.diary.0.3": "Day 7.\n\nIt leaves scraps behind. Black, cold, like a shadow you can hold. I am collecting them. I think a lantern could be made from them.",
+  "cornerofeye.camp.diary.0.4": "It is breathing behind the tent.\n\nI will not look. I will not look. I will not lo",
+  "cornerofeye.camp.diary.1.0": "We came here together, the two of us.\n\nI am writing this so I remember there were two of us.",
+  "cornerofeye.camp.diary.1.1": "He said he hears footsteps behind him. One step behind his own. I told him it was an echo.\n\nThere is nothing here to echo.",
+  "cornerofeye.camp.diary.1.2": "In the morning his bedroll was empty. Handprints led away from it into the dark.\n\nLong fingers. Too long.",
+  "cornerofeye.camp.diary.1.3": "Don't sleep where you slept yesterday.\n\nIt remembers.",
+  "cornerofeye.camp.diary.1.4": "I woke up and couldn't move. It was standing at my feet, leaning over me. Slowly.\n\nI still can't",
+  "cornerofeye.camp.diary.2.0": "Don't build high.\n\nI thought it couldn't reach me on the tower.",
+  "cornerofeye.camp.diary.2.1": "It didn't climb. It stood below and looked up.\n\nAll night.\n\nWithout blinking.",
+  "cornerofeye.camp.diary.2.2": "I looked away for a second.",
+  "cornerofeye.camp.diary.2.3": "If you find this: light. A flash, right at it. Catch it in the light three times.\n\nThe last time only under a red moon. Before that it doesn't count.",
+  "cornerofeye.camp.diary.2.4": "It is already be"
 }
