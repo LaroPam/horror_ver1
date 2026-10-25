@@ -241,5 +241,9 @@
   "cornerofeye.sign.9.2": "of your eye",
   "commands.cornerofeye.visit": "It went through %s's home.",
   "commands.cornerofeye.visit.failed": "No bed to visit, or someone is home.",
-  "commands.cornerofeye.morning": "It was at the wall by %s's bed."
+  "commands.cornerofeye.morning": "It was at the wall by %s's bed.",
+  "cornerofeye.learned.light": "It remembers your light. It will not wait for it to go out.",
+  "cornerofeye.learned.height": "It remembers where you hide. Up high. It is in no hurry.",
+  "cornerofeye.learned.bed": "It knows where you sleep.",
+  "cornerofeye.learned.gaze": "It knows you are looking for it. It keeps behind you now."
 }

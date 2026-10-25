@@ -61,10 +61,10 @@ public enum HauntEvent {
             }
         }
         while (!pool.isEmpty()) {
-            int roll = context.random().nextInt(pool.stream().mapToInt(event -> event.weight(maxTier)).sum());
+            int roll = context.random().nextInt(pool.stream().mapToInt(event -> event.weight(maxTier, context)).sum());
             HauntEvent picked = pool.get(pool.size() - 1);
             for (HauntEvent event : pool) {
-                roll -= event.weight(maxTier);
+                roll -= event.weight(maxTier, context);
                 if (roll < 0) {
                     picked = event;
                     break;
@@ -78,7 +78,12 @@ public enum HauntEvent {
         return null;
     }
 
-    private int weight(int maxTier) {
-        return this.tier == maxTier ? this.weight * 3 : this.weight;
+    private int weight(int maxTier, HauntContext context) {
+        int weight = this.tier == maxTier ? this.weight * 3 : this.weight;
+        if (this == LIGHTS_OUT || this == FAR_LIGHT_OUT) {
+            // It has learned that you hide in the light.
+            weight = (int) (weight * (1.0F + 3.0F * Habits.get(context.player(), Habits.Habit.LIGHT)));
+        }
+        return weight;
     }
 }

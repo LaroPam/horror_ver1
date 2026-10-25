@@ -3,6 +3,7 @@ package com.laropam.cornerofeye.entity;
 import com.laropam.cornerofeye.HorrorConfig;
 import com.laropam.cornerofeye.haunt.Doll;
 import com.laropam.cornerofeye.haunt.Director;
+import com.laropam.cornerofeye.haunt.Habits;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntManager;
 import com.laropam.cornerofeye.haunt.LightSuppression;
@@ -703,6 +704,7 @@ public class TheOneEntity extends Monster {
         int safe = HorrorConfig.SAFE_LIGHT_LEVEL.get();
         if (this.isGazedAt(level) && this.relocateCooldown == 0) {
             this.relocateCooldown = 20;
+            Habits.note(victim, Habits.Habit.GAZE, 0.03F);
             Vec3 spot = this.findPeripheralSpot(level, victim, 8.0D, 16.0D, safe);
             if (spot != null) {
                 this.waypoint = spot;
@@ -725,7 +727,7 @@ public class TheOneEntity extends Monster {
 
         if (--this.snuffCooldown <= 0) {
             this.snuffNear(level, victim);
-            this.snuffCooldown = this.stage >= HauntData.HUNTING ? 40 + this.random.nextInt(60) : 100 + this.random.nextInt(100);
+            this.snuffCooldown = this.learnedLight(victim, this.stage >= HauntData.HUNTING ? 40 + this.random.nextInt(60) : 100 + this.random.nextInt(100));
         }
         this.ambientSounds(victim, 14.0D);
     }
@@ -745,6 +747,7 @@ public class TheOneEntity extends Monster {
         if (this.isGazedAt(level) && this.relocateCooldown == 0) {
             // You can't face it. It is just somewhere else now, and a little closer.
             this.relocateCooldown = 20;
+            Habits.note(victim, Habits.Habit.GAZE, 0.03F);
             Vec3 spot = this.findPeripheralSpot(level, victim, Math.max(2.5D, dist * 0.6D), Math.max(4.0D, dist * 0.85D), safe);
             // When it has to dig its way to you, it can't skip a wall by being somewhere else. Up in the open air
             // there is no wall to skip, only the height.
@@ -764,6 +767,10 @@ public class TheOneEntity extends Monster {
         }
 
         boolean victimInLight = isLit(level, victim, safe);
+        if (victimInLight && dist < 24.0D) {
+            // Saved by the light again. It will remember that.
+            Habits.note(victim, Habits.Habit.LIGHT, 0.0006F);
+        }
         // Its reach, not its eyes, decides: hunched in a low room its head is up in the ceiling.
         if (dist < 1.8D && !victimInLight && (!Burrow.allowed(level, this) || this.openPathTo(victim.position()))) {
             this.touch(victim);
@@ -805,11 +812,11 @@ public class TheOneEntity extends Monster {
             // Waits at the edge of the light and works on the light instead.
             if (--this.snuffCooldown <= 0) {
                 this.snuffNear(level, victim);
-                this.snuffCooldown = 30 + this.random.nextInt(40);
+                this.snuffCooldown = this.learnedLight(victim, 30 + this.random.nextInt(40));
             }
         } else if (--this.snuffCooldown <= 0) {
             this.snuffNear(level, victim);
-            this.snuffCooldown = 80 + this.random.nextInt(60);
+            this.snuffCooldown = this.learnedLight(victim, 80 + this.random.nextInt(60));
         }
         this.ambientSounds(victim, 18.0D);
     }
@@ -853,7 +860,10 @@ public class TheOneEntity extends Monster {
         this.setDeltaMovement(Vec3.ZERO);
         this.setCrawling(!this.hasRoomToStand(this.position()));
         this.face(victim.position());
-        if (++this.stareTicks < STARE_TICKS || Sight.canSee(level, victim, this.position().add(0.0D, 2.5D, 0.0D), 0.5D)) {
+        Habits.note(victim, Habits.Habit.HEIGHT, 0.0008F);
+        // It has learned that you go up there: it is in no hurry, it stands and looks up at you for longer.
+        int wait = (int) (STARE_TICKS * (1.0F + Habits.get(victim, Habits.Habit.HEIGHT)));
+        if (++this.stareTicks < wait || Sight.canSee(level, victim, this.position().add(0.0D, 2.5D, 0.0D), 0.5D)) {
             return;
         }
         Vec3 spot = SpotFinder.find(level, victim, 1.5D, 4.0D, 150.0F, 30.0F, 3, 20,
@@ -1246,8 +1256,10 @@ public class TheOneEntity extends Monster {
 
     @Nullable
     private Vec3 findPeripheralSpot(ServerLevel level, ServerPlayer victim, double minDist, double maxDist, int safe) {
-        // 55-110 degrees off where you are looking: the edge of the screen, or just past it.
-        return SpotFinder.find(level, victim, minDist, maxDist, 82.0F, 27.0F, 6, 16,
+        // 55-110 degrees off where you are looking: the edge of the screen, or just past it. Further round behind you
+        // once it has learned that you look for it.
+        float offset = 82.0F + 60.0F * Habits.get(victim, Habits.Habit.GAZE);
+        return SpotFinder.find(level, victim, minDist, maxDist, offset, 27.0F, 6, 16,
                 spot -> SpotFinder.isDark(level, spot, safe) && !Sight.canSee(level, victim, spot.add(0.0D, 1.6D, 0.0D), DIRECT_GAZE));
     }
 
@@ -1255,7 +1267,12 @@ public class TheOneEntity extends Monster {
         if (!HorrorConfig.ALLOW_BLOCK_CHANGES.get()) {
             return;
         }
-        Lights.smotherOne(level, victim.blockPosition(), 14, 6, this);
+        Lights.smotherOne(level, victim.blockPosition(), 14 + (int) (12.0F * Habits.get(victim, Habits.Habit.LIGHT)), 6, this);
+    }
+
+    /** {@code ticks} until it puts out another light, sooner the more you have hidden in the light from it. */
+    private int learnedLight(ServerPlayer victim, int ticks) {
+        return (int) (ticks * (1.0F - 0.6F * Habits.get(victim, Habits.Habit.LIGHT)));
     }
 
     private void ambientSounds(ServerPlayer victim, double range) {

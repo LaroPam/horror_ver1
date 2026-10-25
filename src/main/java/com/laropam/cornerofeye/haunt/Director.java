@@ -128,10 +128,15 @@ public final class Director {
         return state(player).mood;
     }
 
-    /** "QUIET 40/120, tension 0.20": for the status command. */
+    /** "QUIET 40/120, tension 0.20; learned light 0.30 ...": for the status command. */
     public static String describe(ServerPlayer player) {
         State state = state(player);
-        return String.format(java.util.Locale.ROOT, "%s %.0f/%.0f, tension %.2f", state.mood, state.progress, state.length, state.tension);
+        StringBuilder text = new StringBuilder(String.format(java.util.Locale.ROOT, "%s %.0f/%.0f, tension %.2f; learned",
+                state.mood, state.progress, state.length, state.tension));
+        for (Habits.Habit habit : Habits.Habit.values()) {
+            text.append(String.format(java.util.Locale.ROOT, " %s %.2f", habit.name().toLowerCase(java.util.Locale.ROOT), Habits.get(player, habit)));
+        }
+        return text.toString();
     }
 
     /** Skips to the next mood, for testing. */

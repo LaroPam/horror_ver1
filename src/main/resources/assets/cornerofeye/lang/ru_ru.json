@@ -241,5 +241,9 @@
   "cornerofeye.sign.9.2": "глаза",
   "commands.cornerofeye.visit": "Оно побывало дома у %s.",
   "commands.cornerofeye.visit.failed": "Нет кровати, или кто-то дома.",
-  "commands.cornerofeye.morning": "Оно было у стены возле кровати %s."
+  "commands.cornerofeye.morning": "Оно было у стены возле кровати %s.",
+  "cornerofeye.learned.light": "Оно запомнило твой свет. Ждать, пока он погаснет, оно больше не будет.",
+  "cornerofeye.learned.height": "Оно запомнило, где ты прячешься. Наверху. Оно не торопится.",
+  "cornerofeye.learned.bed": "Оно знает, где ты спишь.",
+  "cornerofeye.learned.gaze": "Оно знает, что ты высматриваешь его. Теперь оно держится за спиной."
 }

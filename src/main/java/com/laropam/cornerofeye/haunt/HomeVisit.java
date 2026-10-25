@@ -64,11 +64,13 @@ public final class HomeVisit {
             }
             return;
         }
-        if (dist < 48.0D || dist > 160.0D || tag.contains(LAST) && data.getTicks() - tag.getLong(LAST) < BETWEEN) {
+        // Always the same bed: it knows where you live, and goes there more often.
+        float sameBed = Habits.get(player, Habits.Habit.BED);
+        if (dist < 48.0D || dist > 160.0D || tag.contains(LAST) && data.getTicks() - tag.getLong(LAST) < BETWEEN * (1.0F - 0.6F * sameBed)) {
             return;
         }
         // About once in a quarter of an hour of being away.
-        if (player.getRandom().nextInt(900) != 0) {
+        if (player.getRandom().nextInt((int) (900 / (1.0F + 2.0F * sameBed))) != 0) {
             return;
         }
         if (visit(player.server.overworld(), bed)) {

@@ -257,10 +257,23 @@ public final class HauntManager {
             min = 10.0D;
             max = 16.0D;
         }
-        // At the edge of the screen, somewhere you could see it if you happened to glance that way.
-        Vec3 spot = SpotFinder.find(level, victim, min, max, 60.0F, 20.0F, 12, 24,
-                pos -> SpotFinder.isDark(level, pos, safe) && Sight.clearLine(level, victim, pos.add(0.0D, 2.6D, 0.0D))
-                        && Sight.gazeDot(victim, pos.add(0.0D, 1.6D, 0.0D)) < 0.9D);
+        Vec3 spot = null;
+        BlockPos below = SpotFinder.findGround(level, victim.blockPosition().below(), 2) == null
+                ? SpotFinder.findGround(level, victim.blockPosition().below(12), 10) : null;
+        if (below != null && victim.getY() - below.getY() >= 5.0D && Habits.get(victim, Habits.Habit.HEIGHT) >= 0.4F) {
+            // It knows you go up high. It comes straight to the foot of wherever you are, and looks up.
+            double height = victim.getY() - below.getY();
+            spot = SpotFinder.find(level, victim, 2.0D, 4.0D + height, 0.0F, 180.0F, (int) height + 4, 32,
+                    pos -> pos.y < victim.getY() - 4.0D && SpotFinder.isDark(level, pos, safe) && Sight.clearLine(level, victim, pos.add(0.0D, 1.5D, 0.0D)));
+        }
+        if (spot == null) {
+            // At the edge of the screen, somewhere you could see it if you happened to glance that way; further round
+            // behind you if it has learned that you look for it.
+            float offset = 60.0F + 70.0F * Habits.get(victim, Habits.Habit.GAZE);
+            spot = SpotFinder.find(level, victim, min, max, offset, 20.0F, 12, 24,
+                    pos -> SpotFinder.isDark(level, pos, safe) && Sight.clearLine(level, victim, pos.add(0.0D, 2.6D, 0.0D))
+                            && Sight.gazeDot(victim, pos.add(0.0D, 1.6D, 0.0D)) < 0.9D);
+        }
         if (spot == null) {
             spot = SpotFinder.find(level, victim, min, max, 90.0F, 90.0F, 12, 24, pos -> SpotFinder.isDark(level, pos, safe));
         }
@@ -399,10 +412,16 @@ public final class HauntManager {
         }
         // Woke up in the morning after a full night.
         HauntData data = HauntData.get(player.server);
-        if (data.isBanished() || data.getStage() < HauntData.APPROACHING || player.getRandom().nextFloat() > 0.35F) {
+        BlockPos sleptIn = HomeVisit.bedOf(player);
+        if (sleptIn != null) {
+            Habits.sleptIn(player, sleptIn);
+        }
+        // The same bed every night: it knows where to find you in the morning.
+        float sameBed = Habits.get(player, Habits.Habit.BED);
+        if (data.isBanished() || data.getStage() < HauntData.APPROACHING || player.getRandom().nextFloat() > 0.35F + 0.35F * sameBed) {
             return;
         }
-        if (findTheOne(player.serverLevel()) == null && player.getRandom().nextFloat() < 0.45F) {
+        if (findTheOne(player.serverLevel()) == null && player.getRandom().nextFloat() < 0.45F + 0.3F * sameBed) {
             // You are awake and you can't move.
             schedule(10, () -> Moments.start(player, data.getStage(), Scene.PARALYSIS, true));
             return;
