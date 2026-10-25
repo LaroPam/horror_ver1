@@ -57,6 +57,7 @@ public class CornerOfTheEye {
         } else if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(ModItems.LANTERN_OF_REVELATION);
             event.accept(ModItems.WARDING_BELL);
+            event.accept(ModItems.BELL_STRING);
             event.accept(ModItems.HAND_MIRROR);
             event.accept(ModItems.FLARE);
             event.accept(ModItems.CURSED_DOLL);

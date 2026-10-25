@@ -212,6 +212,18 @@ public class TheOneModel extends HierarchicalModel<TheOneEntity> {
             }
             case WINDOW -> this.poseWindow(entity, sceneTime, ageInTicks, pitch, headTilt);
             case PARALYSIS -> this.poseParalysis(sceneTime, ageInTicks, pitch);
+            case LURED -> {
+                if (entity.getAnim() == 1) {
+                    // Crouched under the doll, face turned up to it, sniffing at it in jerks.
+                    this.head.xRot += -0.45F + Mth.sin(ageInTicks * 1.6F) * 0.12F;
+                    this.head.yRot += Mth.sin(ageInTicks * 0.37F) > 0.6F ? 0.35F : 0.0F;
+                    this.jaw.xRot = 0.25F + Mth.sin(ageInTicks * 2.4F) * 0.12F;
+                } else if (entity.getAnim() == 2) {
+                    // Rearing up out of the crouch to tear it down.
+                    this.reach(1.0F, ageInTicks);
+                    this.rightArm.xRot -= 0.6F;
+                }
+            }
             case STILL -> {
                 // Sniffing for you.
                 this.head.xRot += Mth.sin(ageInTicks * 1.3F) * 0.18F;

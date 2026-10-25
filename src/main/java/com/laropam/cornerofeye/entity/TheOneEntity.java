@@ -2,6 +2,7 @@ package com.laropam.cornerofeye.entity;
 
 import com.laropam.cornerofeye.HorrorConfig;
 import com.laropam.cornerofeye.haunt.Doll;
+import com.laropam.cornerofeye.block.BellStringBlock;
 import com.laropam.cornerofeye.haunt.Director;
 import com.laropam.cornerofeye.haunt.Habits;
 import com.laropam.cornerofeye.haunt.HauntData;
@@ -428,6 +429,18 @@ public class TheOneEntity extends Monster {
                 this.animTicks = 0;
             } else {
                 this.animTicks++;
+            }
+        } else if (this.tickCount % 5 == 0 && this.level() instanceof ServerLevel level) {
+            this.brushBells(level);
+        }
+    }
+
+    /** Any bell on a thread it brushes past rings. */
+    private void brushBells(ServerLevel level) {
+        BlockPos feet = this.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(feet.offset(-1, -1, -1), feet.offset(1, 3, 1))) {
+            if (level.getBlockState(pos).getBlock() instanceof BellStringBlock) {
+                BellStringBlock.ring(level, pos.immutable());
             }
         }
     }
@@ -908,6 +921,11 @@ public class TheOneEntity extends Monster {
 
     /** Switches to {@code phase} for exactly {@code ticks}: in a nightmare it doesn't wander off on its own. */
     public void holdPhase(Phase phase, int ticks) {
+        if (phase != Phase.SCENE) {
+            // Out of whatever it was playing out: no scene pose left over.
+            this.entityData.set(DATA_SCENE, Scene.NONE.ordinal());
+            this.sceneRunner = null;
+        }
         this.startPhase(phase);
         this.phaseTicks = ticks;
     }

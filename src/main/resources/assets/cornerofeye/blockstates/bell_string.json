@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "ringing=false": {
+      "model": "cornerofeye:block/bell_string"
+    },
+    "ringing=true": {
+      "model": "cornerofeye:block/bell_string_ringing"
+    }
+  }
+}

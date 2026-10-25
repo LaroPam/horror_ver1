@@ -167,5 +167,14 @@
         "type": "event"
       }
     ]
+  },
+  "bell_string": {
+    "subtitle": "subtitles.cornerofeye.bell_string",
+    "sounds": [
+      {
+        "name": "cornerofeye:warding_bell",
+        "pitch": 1.5
+      }
+    ]
   }
 }

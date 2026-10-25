@@ -12,6 +12,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -112,7 +114,7 @@ public final class Doll {
 
     /** At nightfall a doll you got rid of without fire is back. */
     static void nightfall(ServerPlayer player) {
-        if (bond(player) == 0L || carries(player)) {
+        if (bond(player) == 0L || carries(player) || hungUp(player)) {
             return;
         }
         long bond = newBond(player);
@@ -120,6 +122,18 @@ public final class Doll {
         ItemStack doll = new ItemStack(ModItems.CURSED_DOLL.get());
         doll.getOrCreateTag().putLong(STACK_BOND, bond);
         giveBack(player, doll);
+    }
+
+    /** Their doll is hanging in a frame somewhere: left out on purpose, as bait. It stays where it was put. */
+    private static boolean hungUp(ServerPlayer player) {
+        long bond = bond(player);
+        for (Entity entity : player.serverLevel().getAllEntities()) {
+            if (entity instanceof ItemFrame frame && frame.getItem().is(ModItems.CURSED_DOLL.get())
+                    && frame.getItem().getOrCreateTag().getLong(STACK_BOND) == bond) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void giveBack(ServerPlayer player, ItemStack doll) {

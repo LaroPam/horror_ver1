@@ -178,6 +178,10 @@ public final class HauntManager {
         if (victim == null) {
             return;
         }
+        // A doll left out for it in the dark: it can't help going to that first.
+        if (Moments.lureNear(victim) != null && Moments.start(victim, stage, Scene.LURED, false) != null) {
+            return;
+        }
         // Every so often, instead of just watching, it stages one of its moments. More often the further it gets.
         if (data.getNextMoment() < 0) {
             data.setNextMoment(data.getTicks() + momentInterval(stage, random));

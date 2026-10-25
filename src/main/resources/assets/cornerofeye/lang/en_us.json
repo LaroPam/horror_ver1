@@ -261,5 +261,8 @@
   "cornerofeye.camp.diary.2.1": "It didn't climb. It stood below and looked up.\n\nAll night.\n\nWithout blinking.",
   "cornerofeye.camp.diary.2.2": "I looked away for a second.",
   "cornerofeye.camp.diary.2.3": "If you find this: light. A flash, right at it. Catch it in the light three times.\n\nThe last time only under a red moon. Before that it doesn't count.",
-  "cornerofeye.camp.diary.2.4": "It is already be"
+  "cornerofeye.camp.diary.2.4": "It is already be",
+  "block.cornerofeye.bell_string": "Bell on a Thread",
+  "block.cornerofeye.bell_string.tooltip": "Hang it in a doorway. It rings when it goes by.",
+  "subtitles.cornerofeye.bell_string": "A bell on a thread rings"
 }

@@ -261,5 +261,8 @@
   "cornerofeye.camp.diary.2.1": "Оно не полезло. Оно стояло внизу и смотрело вверх.\n\nВсю ночь.\n\nНе моргая.",
   "cornerofeye.camp.diary.2.2": "Я отвернулся на секунду.",
   "cornerofeye.camp.diary.2.3": "Если найдёшь это: свет. Вспышкой, прямо в него. Поймать его в свет три раза.\n\nПоследний раз — только под красной луной. Раньше не считается.",
-  "cornerofeye.camp.diary.2.4": "Оно уже за"
+  "cornerofeye.camp.diary.2.4": "Оно уже за",
+  "block.cornerofeye.bell_string": "Колокольчик на нитке",
+  "block.cornerofeye.bell_string.tooltip": "Повесь в проёме. Зазвенит, когда оно пройдёт мимо.",
+  "subtitles.cornerofeye.bell_string": "Звенит колокольчик на нитке"
 }

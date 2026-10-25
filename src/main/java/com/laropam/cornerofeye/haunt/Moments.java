@@ -8,6 +8,7 @@ import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.entity.scene.BehindScene;
 import com.laropam.cornerofeye.entity.scene.CeilingScene;
 import com.laropam.cornerofeye.entity.scene.ChaseScene;
+import com.laropam.cornerofeye.entity.scene.LuredScene;
 import com.laropam.cornerofeye.entity.scene.MassacreScene;
 import com.laropam.cornerofeye.entity.scene.ParalysisScene;
 import com.laropam.cornerofeye.entity.scene.UnderwaterScene;
@@ -23,6 +24,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
+import com.laropam.cornerofeye.registry.ModItems;
+import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.item.ItemStack;
@@ -48,8 +51,8 @@ public final class Moments {
     public static TheOneEntity startRandom(ServerPlayer victim, int stage) {
         List<Scene> scenes = new ArrayList<>();
         for (Scene scene : Scene.values()) {
-            // Paralysis only ever comes when you wake up.
-            if (scene != Scene.NONE && scene != Scene.PARALYSIS && stage >= scene.minStage) {
+            // Paralysis only ever comes when you wake up, and the lure only when there is one.
+            if (scene != Scene.NONE && scene != Scene.PARALYSIS && scene != Scene.LURED && stage >= scene.minStage) {
                 scenes.add(scene);
             }
         }
@@ -85,6 +88,7 @@ public final class Moments {
             case CHASE -> chase(level, victim, stage);
             case WINDOW -> window(level, victim, stage);
             case PARALYSIS -> paralysis(level, victim, stage);
+            case LURED -> lured(level, victim, stage);
             case NONE -> null;
         };
     }
@@ -418,6 +422,59 @@ public final class Moments {
             HorrorNetwork.send(victim, HorrorPacket.Type.PARALYSIS, ParalysisScene.LENGTH + 6);
         }
         return one;
+    }
+
+    // -------------------------------------------------------------------- lure
+
+    /** A cursed doll hung up in a frame near {@code victim}, with dark ground under it: a lure. */
+    @Nullable
+    public static ItemFrame lureNear(ServerPlayer victim) {
+        ServerLevel level = victim.serverLevel();
+        int safe = HorrorConfig.SAFE_LIGHT_LEVEL.get();
+        for (ItemFrame frame : level.getEntitiesOfClass(ItemFrame.class, victim.getBoundingBox().inflate(48.0D))) {
+            if (frame.getItem().is(ModItems.CURSED_DOLL.get()) && lureSpot(level, frame) != null
+                    && SpotFinder.isDark(level, lureSpot(level, frame), safe)) {
+                return frame;
+            }
+        }
+        return null;
+    }
+
+    /** The floor just in front of and below the frame, where it crouches. */
+    @Nullable
+    private static Vec3 lureSpot(ServerLevel level, ItemFrame frame) {
+        Direction facing = frame.getDirection();
+        BlockPos front = frame.blockPosition();
+        if (facing.getAxis().isHorizontal()) {
+            front = front.relative(facing);
+        }
+        BlockPos ground = SpotFinder.findGround(level, front, 3);
+        return ground == null ? null : Vec3.atBottomCenterOf(ground);
+    }
+
+    /** It comes out of the dark somewhere nobody is looking, a way off, and goes to the doll. */
+    @Nullable
+    private static TheOneEntity lured(ServerLevel level, ServerPlayer victim, int stage) {
+        ItemFrame frame = lureNear(victim);
+        if (frame == null) {
+            return null;
+        }
+        Vec3 spot = lureSpot(level, frame);
+        int safe = HorrorConfig.SAFE_LIGHT_LEVEL.get();
+        RandomSource random = victim.getRandom();
+        for (int attempt = 0; attempt < 40; attempt++) {
+            double angle = random.nextDouble() * Math.PI * 2.0D;
+            double dist = 8.0D + random.nextDouble() * 8.0D;
+            BlockPos ground = SpotFinder.findGround(level, BlockPos.containing(spot.x + Math.cos(angle) * dist, spot.y, spot.z + Math.sin(angle) * dist), 6);
+            if (ground == null) {
+                continue;
+            }
+            Vec3 start = Vec3.atBottomCenterOf(ground);
+            if (SpotFinder.isDark(level, start, safe) && Sight.hiddenFromEveryone(level, start.add(0.0D, 1.5D, 0.0D))) {
+                return TheOneEntity.spawnForScene(level, victim, start, stage, Scene.LURED, new LuredScene(frame, spot));
+            }
+        }
+        return null;
     }
 
     /** Nothing in the way of a body there. */
