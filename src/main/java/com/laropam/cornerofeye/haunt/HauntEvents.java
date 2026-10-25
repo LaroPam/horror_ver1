@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -89,7 +90,8 @@ final class HauntEvents {
         }
         BlockPos door = doors.get(c.random().nextInt(doors.size()));
         BlockState state = level.getBlockState(door);
-        if (HorrorConfig.ALLOW_BLOCK_CHANGES.get() && !state.getValue(DoorBlock.OPEN) && c.random().nextInt(3) == 0
+        if (HorrorConfig.ALLOW_BLOCK_CHANGES.get() && !state.getValue(DoorBlock.OPEN) && ((DoorBlock) state.getBlock()).type().canOpenByHand()
+                && c.random().nextInt(3) == 0
                 && Sight.blockHiddenFromEveryone(level, door) && Sight.blockHiddenFromEveryone(level, door.above())) {
             ((DoorBlock) state.getBlock()).setOpen(null, level, state, door, true);
         } else {
@@ -156,7 +158,7 @@ final class HauntEvents {
         ServerPlayer player = c.player();
         Vec3 spot = SpotFinder.find(level, player, 6.0D, 14.0D, 150.0F, 30.0F, 4, 20,
                 pos -> Sight.hiddenFromEveryone(level, pos.add(0.0D, 0.5D, 0.0D))
-                        && level.getBlockState(BlockPos.containing(pos)).canBeReplaced());
+                        && level.getBlockState(BlockPos.containing(pos)).canBeReplaced() && !level.getBlockState(BlockPos.containing(pos)).is(Blocks.LIGHT));
         if (spot == null) {
             return false;
         }

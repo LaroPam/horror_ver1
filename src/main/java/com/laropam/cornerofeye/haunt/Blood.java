@@ -8,6 +8,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 /** Splashes of blood on the floor around a spot. */
@@ -24,7 +25,8 @@ public final class Blood {
                 BlockPos pos = column.above(dy);
                 BlockState state = level.getBlockState(pos);
                 BlockPos below = pos.below();
-                if (state.canBeReplaced() && !state.is(ModBlocks.BLOOD.get()) && level.getFluidState(pos).isEmpty()
+                // Never over a flare's light: that is the one fire it can't put out.
+                if (state.canBeReplaced() && !state.is(ModBlocks.BLOOD.get()) && !state.is(Blocks.LIGHT) && level.getFluidState(pos).isEmpty()
                         && level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)) {
                     level.setBlock(pos, BloodBlock.random(ModBlocks.BLOOD.get(), random), Block.UPDATE_ALL);
                     placed++;

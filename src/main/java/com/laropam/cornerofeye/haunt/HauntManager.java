@@ -21,6 +21,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -451,7 +452,7 @@ public final class HauntManager {
         schedule(5, () -> {
             ServerLevel level = player.serverLevel();
             for (BlockPos pos : BlockPos.betweenClosed(player.blockPosition().offset(-2, -1, -2), player.blockPosition().offset(2, 1, 2))) {
-                if (level.getBlockState(pos).canBeReplaced() && level.getFluidState(pos).isEmpty()
+                if (level.getBlockState(pos).canBeReplaced() && !level.getBlockState(pos).is(Blocks.LIGHT) && level.getFluidState(pos).isEmpty()
                         && level.getBlockState(pos.below()).isSolid() && !pos.equals(player.blockPosition())
                         && !pos.equals(player.blockPosition().above())) {
                     float yaw = (float) Math.toDegrees(Math.atan2(pos.getZ() + 0.5D - player.getZ(), pos.getX() + 0.5D - player.getX())) - 90.0F;
