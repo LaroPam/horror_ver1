@@ -180,6 +180,56 @@ JOURNAL = {
     },
 }
 
+# The notebooks in the chest at a victim's camp (VictimCampFeature.DIARIES x PAGES), each ending mid-word.
+CAMP_DIARIES = {
+    "en_us": [
+        [
+            "Day 3.\n\nLight helps. It won't come near while the torches burn. So I will keep torches burning. Lots of torches.",
+            "Day 5.\n\nThe torches go out by themselves. They don't burn down, they go out, as if someone pinched the flame. I saw it at the edge of the light. Only from the corner of my eye.",
+            "Day 6.\n\nLook straight at it and it isn't there. I stopped looking straight at it.\n\nThat is worse.",
+            "Day 7.\n\nIt leaves scraps behind. Black, cold, like a shadow you can hold. I am collecting them. I think a lantern could be made from them.",
+            "It is breathing behind the tent.\n\nI will not look. I will not look. I will not lo",
+        ],
+        [
+            "We came here together, the two of us.\n\nI am writing this so I remember there were two of us.",
+            "He said he hears footsteps behind him. One step behind his own. I told him it was an echo.\n\nThere is nothing here to echo.",
+            "In the morning his bedroll was empty. Handprints led away from it into the dark.\n\nLong fingers. Too long.",
+            "Don't sleep where you slept yesterday.\n\nIt remembers.",
+            "I woke up and couldn't move. It was standing at my feet, leaning over me. Slowly.\n\nI still can't",
+        ],
+        [
+            "Don't build high.\n\nI thought it couldn't reach me on the tower.",
+            "It didn't climb. It stood below and looked up.\n\nAll night.\n\nWithout blinking.",
+            "I looked away for a second.",
+            "If you find this: light. A flash, right at it. Catch it in the light three times.\n\nThe last time only under a red moon. Before that it doesn't count.",
+            "It is already be",
+        ],
+    ],
+    "ru_ru": [
+        [
+            "День 3.\n\nСвет помогает. Пока горят факелы, оно не подходит. Значит, буду жечь факелы. Много факелов.",
+            "День 5.\n\nФакелы гаснут сами. Не догорают, а гаснут, будто кто-то зажимает пламя пальцами. Я видел его у края света. Только краем глаза.",
+            "День 6.\n\nЕсли смотреть прямо, его нет. Я перестал смотреть прямо.\n\nТак хуже.",
+            "День 7.\n\nОно оставляет обрывки. Чёрные, холодные, как тень, которую можно взять в руки. Я собираю их. Мне кажется, из них можно сделать фонарь.",
+            "Оно дышит за палаткой.\n\nЯ не буду смотреть. Я не буду смотреть. Я не бу",
+        ],
+        [
+            "Мы пришли сюда вдвоём.\n\nПишу это, чтобы помнить, что нас было двое.",
+            "Он сказал, что слышит за спиной шаги. На шаг позже своих. Я сказал, что это эхо.\n\nЗдесь нечему отражаться.",
+            "Утром его лежанка была пустой. От неё в темноту вели отпечатки рук.\n\nДлинные пальцы. Слишком длинные.",
+            "Не спи там, где спал вчера.\n\nОно запоминает.",
+            "Проснулся и не мог пошевелиться. Оно стояло в ногах и наклонялось ко мне. Медленно.\n\nЯ и сейчас не",
+        ],
+        [
+            "Не строй высоко.\n\nЯ думал, на башне оно меня не достанет.",
+            "Оно не полезло. Оно стояло внизу и смотрело вверх.\n\nВсю ночь.\n\nНе моргая.",
+            "Я отвернулся на секунду.",
+            "Если найдёшь это: свет. Вспышкой, прямо в него. Поймать его в свет три раза.\n\nПоследний раз — только под красной луной. Раньше не считается.",
+            "Оно уже за",
+        ],
+    ],
+}
+
 TEXT = {
     "en_us": {
         "entity.cornerofeye.the_one": "The One in the Corner",
@@ -311,6 +361,24 @@ TEXT = {
         "advancements.cornerofeye.caught.description": "Catch it with a flash of the Lantern of Revelation",
         "advancements.cornerofeye.banished.title": "The Corners Are Empty",
         "advancements.cornerofeye.banished.description": "Drive it away for good",
+        "subtitles.cornerofeye.claw_glass": "Claws scrape down the glass",
+        "subtitles.cornerofeye.glass_tap": "Something taps on the glass",
+        "commands.cornerofeye.visit": "It went through %s's home.",
+        "commands.cornerofeye.visit.failed": "No bed to visit, or someone is home.",
+        "commands.cornerofeye.morning": "It was at the wall by %s's bed.",
+        "cornerofeye.learned.light": "It remembers your light. It will not wait for it to go out.",
+        "cornerofeye.learned.height": "It remembers where you hide. Up high. It is in no hurry.",
+        "cornerofeye.learned.bed": "It knows where you sleep.",
+        "cornerofeye.learned.gaze": "It knows you are looking for it. It keeps behind you now.",
+        "cornerofeye.camp.diary.title": "Someone's notes",
+        "block.cornerofeye.bell_string": "Bell on a Thread",
+        "block.cornerofeye.bell_string.tooltip": "Hang it in a doorway. It rings when it goes by.",
+        "subtitles.cornerofeye.bell_string": "A bell on a thread rings",
+        "cornerofeye.message.taken": "%s's voice broke off somewhere in the dark.",
+        "cornerofeye.message.taken_back": "The light brought %s back.",
+        "cornerofeye.message.dream_start_taken": "Something has hold of your ankle. The ground scrapes past under you. Then nothing.",
+        "cornerofeye.message.dream_won_taken": "It lets go. You are lying on the ground where it dragged you, and there is something in your hand.",
+        "subtitles.cornerofeye.flesh": "Flesh tears",
     },
     "ru_ru": {
         "entity.cornerofeye.the_one": "Тот, что в углу",
@@ -442,6 +510,24 @@ TEXT = {
         "advancements.cornerofeye.caught.description": "Поймайте его вспышкой Фонаря откровения",
         "advancements.cornerofeye.banished.title": "Углы опустели",
         "advancements.cornerofeye.banished.description": "Изгоните его навсегда",
+        "subtitles.cornerofeye.claw_glass": "Когти скребут по стеклу",
+        "subtitles.cornerofeye.glass_tap": "Кто-то стучит в стекло",
+        "commands.cornerofeye.visit": "Оно побывало дома у %s.",
+        "commands.cornerofeye.visit.failed": "Нет кровати, или кто-то дома.",
+        "commands.cornerofeye.morning": "Оно было у стены возле кровати %s.",
+        "cornerofeye.learned.light": "Оно запомнило твой свет. Ждать, пока он погаснет, оно больше не будет.",
+        "cornerofeye.learned.height": "Оно запомнило, где ты прячешься. Наверху. Оно не торопится.",
+        "cornerofeye.learned.bed": "Оно знает, где ты спишь.",
+        "cornerofeye.learned.gaze": "Оно знает, что ты высматриваешь его. Теперь оно держится за спиной.",
+        "cornerofeye.camp.diary.title": "Чьи-то записи",
+        "block.cornerofeye.bell_string": "Колокольчик на нитке",
+        "block.cornerofeye.bell_string.tooltip": "Повесь в проёме. Зазвенит, когда оно пройдёт мимо.",
+        "subtitles.cornerofeye.bell_string": "Звенит колокольчик на нитке",
+        "cornerofeye.message.taken": "Голос %s оборвался где-то в темноте.",
+        "cornerofeye.message.taken_back": "Свет вернул %s.",
+        "cornerofeye.message.dream_start_taken": "Что-то держит тебя за ногу. Под тобой скребёт земля. Потом — ничего.",
+        "cornerofeye.message.dream_won_taken": "Оно отпускает. Ты лежишь на земле там, куда оно тебя дотащило, и в руке что-то зажато.",
+        "subtitles.cornerofeye.flesh": "Рвётся плоть",
     },
 }
 
@@ -469,6 +555,9 @@ if __name__ == "__main__":
         for chapter, pages in JOURNAL[lang].items():
             for i, page in enumerate(pages):
                 data[f"cornerofeye.journal.{chapter}.{i}"] = page
+        for d, pages in enumerate(CAMP_DIARIES[lang]):
+            for i, page in enumerate(pages):
+                data[f"cornerofeye.camp.diary.{d}.{i}"] = page
         for i, sign in enumerate(SIGNS[lang]):
             for j, line in enumerate(sign):
                 data[f"cornerofeye.sign.{i}.{j}"] = line
@@ -482,6 +571,7 @@ if __name__ == "__main__":
     assert len(SPLASHES["en_us"]) == len(SPLASHES["ru_ru"]) == 10
     assert len(GLITCHES["en_us"]) == len(GLITCHES["ru_ru"]) == 8
     assert len(MIMIC_SAID["en_us"]) == len(MIMIC_SAID["ru_ru"]) == 6
+    assert all(len(d) == 5 for lang in CAMP_DIARIES for d in CAMP_DIARIES[lang]) and len(CAMP_DIARIES["en_us"]) == len(CAMP_DIARIES["ru_ru"]) == 3
     for lang in TOOLTIPS:
         assert [len(v) for v in TOOLTIPS[lang].values()] == [8, 3, 3]
     print([len(s) for s in SIGNS["en_us"]])
