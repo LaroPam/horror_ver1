@@ -132,7 +132,8 @@ public class VictimCampFeature extends Feature<NoneFeatureConfiguration> {
             chest.setItem(slot++, new ItemStack(ModItems.UNLIT_TORCH.get(), 3 + random.nextInt(6)));
             chest.setItem(slot++, new ItemStack(Items.BREAD, 1 + random.nextInt(3)));
             ItemStack flint = new ItemStack(Items.FLINT_AND_STEEL);
-            flint.setDamageValue(flint.getMaxDamage() - 1 - random.nextInt(4));
+            // A strike or two left in it.
+            flint.setDamageValue(Math.max(0, flint.getMaxDamage() - 1 - random.nextInt(2)));
             chest.setItem(slot + random.nextInt(20), flint);
         }
         return true;
