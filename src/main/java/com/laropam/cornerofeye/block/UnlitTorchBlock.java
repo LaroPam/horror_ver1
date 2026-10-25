@@ -8,19 +8,31 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.TorchBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
 /** A torch it put out. Picking it up and putting it back won't light it: strike flint over it. */
 public class UnlitTorchBlock extends TorchBlock {
+    /** It was a soul torch, and lit again it is one again. */
+    public static final BooleanProperty SOUL = BooleanProperty.create("soul");
+
     public UnlitTorchBlock(Properties properties) {
         super(properties, ParticleTypes.SMOKE);
+        this.registerDefaultState(this.stateDefinition.any().setValue(SOUL, false));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(SOUL);
     }
 
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-        return Relight.torch(level, pos, player, hand, Blocks.TORCH.defaultBlockState());
+        return Relight.torch(level, pos, player, hand, (state.getValue(SOUL) ? Blocks.SOUL_TORCH : Blocks.TORCH).defaultBlockState());
     }
 
     @Override
