@@ -26,7 +26,9 @@ public enum Scene {
     /** Your room is lit, so it bends down to the window and looks in, palms on the glass. */
     WINDOW(2),
     /** You wake up and can't move. It is standing at the foot of the bed, leaning closer. Only on waking. */
-    PARALYSIS(2);
+    PARALYSIS(2),
+    /** The doll you hung up in a frame draws it: it crouches under it, sniffing, before it comes for you. */
+    LURED(2);
 
     /** Stage at which the haunt starts using this moment on its own. */
     public final int minStage;

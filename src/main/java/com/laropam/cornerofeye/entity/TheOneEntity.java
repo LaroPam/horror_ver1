@@ -2,6 +2,7 @@ package com.laropam.cornerofeye.entity;
 
 import com.laropam.cornerofeye.HorrorConfig;
 import com.laropam.cornerofeye.haunt.Doll;
+import com.laropam.cornerofeye.block.BellStringBlock;
 import com.laropam.cornerofeye.haunt.Director;
 import com.laropam.cornerofeye.haunt.Habits;
 import com.laropam.cornerofeye.haunt.HauntData;
@@ -429,6 +430,18 @@ public class TheOneEntity extends Monster {
             } else {
                 this.animTicks++;
             }
+        } else if (this.tickCount % 5 == 0 && this.level() instanceof ServerLevel level) {
+            this.brushBells(level);
+        }
+    }
+
+    /** Any bell on a thread it brushes past rings. */
+    private void brushBells(ServerLevel level) {
+        BlockPos feet = this.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(feet.offset(-1, -1, -1), feet.offset(1, 3, 1))) {
+            if (level.getBlockState(pos).getBlock() instanceof BellStringBlock) {
+                BellStringBlock.ring(level, pos.immutable());
+            }
         }
     }
 
@@ -599,6 +612,15 @@ public class TheOneEntity extends Monster {
     protected void customServerAiStep() {
         super.customServerAiStep();
         if (!(this.level() instanceof ServerLevel level)) {
+            return;
+        }
+        if (this.getPhase() == Phase.REVEALED) {
+            // Caught: it comes apart where it stands, whoever is still about.
+            if (--this.phaseTicks <= 0) {
+                this.leave(HauntManager.Exit.WOUNDED);
+            } else {
+                this.tickRevealed(level);
+            }
             return;
         }
         ServerPlayer victim = this.resolveVictim();
@@ -908,6 +930,11 @@ public class TheOneEntity extends Monster {
 
     /** Switches to {@code phase} for exactly {@code ticks}: in a nightmare it doesn't wander off on its own. */
     public void holdPhase(Phase phase, int ticks) {
+        if (phase != Phase.SCENE) {
+            // Out of whatever it was playing out: no scene pose left over.
+            this.entityData.set(DATA_SCENE, Scene.NONE.ordinal());
+            this.sceneRunner = null;
+        }
         this.startPhase(phase);
         this.phaseTicks = ticks;
     }
@@ -1076,6 +1103,7 @@ public class TheOneEntity extends Monster {
         if (damage > 0.0F) {
             victim.invulnerableTime = 0;
             victim.hurt(this.damageSources().mobAttack(this), damage);
+            this.level().playSound(null, victim.getX(), victim.getEyeY(), victim.getZ(), ModSounds.FLESH.get(), SoundSource.HOSTILE, 1.0F, 0.85F);
         }
         victim.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 200, 0), this);
         victim.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 1), this);
@@ -1326,6 +1354,10 @@ public class TheOneEntity extends Monster {
     }
 
     public void leave(HauntManager.Exit exit) {
+        if (this.getPhase() == Phase.REVEALED) {
+            // Caught, whatever else happens to it now: the wound is what counts (on the last one, the end of it).
+            exit = HauntManager.Exit.WOUNDED;
+        }
         if (this.challenge != null && this.victimId != null && this.level().getPlayerByUUID(this.victimId) instanceof ServerPlayer victim) {
             HorrorNetwork.send(victim, HorrorPacket.Type.CHALLENGE_END, 2);
         }

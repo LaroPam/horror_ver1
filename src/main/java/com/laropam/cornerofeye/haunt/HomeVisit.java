@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BedBlock;
@@ -52,7 +53,9 @@ public final class HomeVisit {
         if (bed == null) {
             return;
         }
-        CompoundTag tag = player.getPersistentData();
+        // Kept through death, like everything else it knows about you.
+        CompoundTag tag = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
+        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, tag);
         double dx = player.getX() - bed.getX() - 0.5D;
         double dz = player.getZ() - bed.getZ() - 0.5D;
         double dist = Math.sqrt(dx * dx + dz * dz);
@@ -100,8 +103,8 @@ public final class HomeVisit {
             return false;
         }
         Vec3 home = Vec3.atCenterOf(head);
-        if (level.getNearestPlayer(home.x, home.y, home.z, 24.0D, false) != null) {
-            // Someone is home.
+        if (level.getNearestPlayer(home.x, home.y, home.z, 24.0D, false) != null || !level.isAreaLoaded(head, 15)) {
+            // Someone is home (or the house isn't all there: it doesn't load the world to get in).
             return false;
         }
         Direction facing = bed.getValue(BedBlock.FACING);

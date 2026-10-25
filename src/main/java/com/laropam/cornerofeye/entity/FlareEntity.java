@@ -118,26 +118,32 @@ public class FlareEntity extends ThrowableItemProjectile {
         }
     }
 
-    /** An invisible full-strength light where it burns, in air or in still water. */
+    /**
+     * An invisible full-strength light where it burns, in air or in still water; landed in grass, flowers or snow,
+     * just above them.
+     */
     private void keepLight() {
-        BlockPos pos = this.blockPosition();
-        if (this.lightPos != null && !this.lightPos.equals(pos)) {
+        BlockPos at = this.blockPosition();
+        if (this.lightPos != null && !this.lightPos.equals(at) && !this.lightPos.equals(at.above())) {
             this.clearLight();
         }
-        BlockState state = this.level().getBlockState(pos);
-        if (state.is(Blocks.LIGHT)) {
+        for (BlockPos pos : new BlockPos[]{at, at.above()}) {
+            BlockState state = this.level().getBlockState(pos);
+            if (state.is(Blocks.LIGHT)) {
+                this.lightPos = pos;
+                return;
+            }
+            BlockState light = Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, 15);
+            if (state.isAir()) {
+                this.level().setBlock(pos, light, Block.UPDATE_ALL);
+            } else if (state.is(Blocks.WATER) && this.level().getFluidState(pos).is(Fluids.WATER) && this.level().getFluidState(pos).isSource()) {
+                this.level().setBlock(pos, light.setValue(LightBlock.WATERLOGGED, true), Block.UPDATE_ALL);
+            } else {
+                continue;
+            }
             this.lightPos = pos;
             return;
         }
-        BlockState light = Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, 15);
-        if (state.isAir()) {
-            this.level().setBlock(pos, light, Block.UPDATE_ALL);
-        } else if (state.is(Blocks.WATER) && this.level().getFluidState(pos).is(Fluids.WATER) && this.level().getFluidState(pos).isSource()) {
-            this.level().setBlock(pos, light.setValue(LightBlock.WATERLOGGED, true), Block.UPDATE_ALL);
-        } else {
-            return;
-        }
-        this.lightPos = pos;
     }
 
     private void clearLight() {

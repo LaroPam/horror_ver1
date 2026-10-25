@@ -1,5 +1,6 @@
 package com.laropam.cornerofeye.item;
 
+import com.laropam.cornerofeye.entity.Phase;
 import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntManager;
@@ -104,7 +105,7 @@ public class LanternOfRevelationItem extends Item {
         }
         for (TheOneEntity one : ones) {
             double radius = one.getStage() >= HauntData.HUNTING ? 12.0D : 20.0D;
-            if (!one.isDecoy() && one.distanceTo(player) < radius * 1.5D) {
+            if (!one.isDecoy() && one.getPhase() != Phase.REVEALED && one.distanceTo(player) < radius * 1.5D) {
                 one.scareAway();
             }
         }

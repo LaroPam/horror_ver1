@@ -1,6 +1,7 @@
 package com.laropam.cornerofeye.registry;
 
 import com.laropam.cornerofeye.CornerOfTheEye;
+import com.laropam.cornerofeye.block.BellStringBlock;
 import com.laropam.cornerofeye.block.BloodBlock;
 import com.laropam.cornerofeye.block.MarkBlock;
 import com.laropam.cornerofeye.block.WritingBlock;
@@ -42,6 +43,10 @@ public final class ModBlocks {
     public static final RegistryObject<Block> WRITING = BLOCKS.register("writing",
             () -> new WritingBlock(BlockBehaviour.Properties.of().mapColor(MapColor.NONE).noCollission().noOcclusion().instabreak()
                     .replaceable().noLootTable().pushReaction(PushReaction.DESTROY).sound(SoundType.SLIME_BLOCK)));
+
+    public static final RegistryObject<Block> BELL_STRING = BLOCKS.register("bell_string",
+            () -> new BellStringBlock(BlockBehaviour.Properties.of().mapColor(MapColor.GOLD).noCollission().noOcclusion().instabreak()
+                    .pushReaction(PushReaction.DESTROY).sound(SoundType.WOOL)));
 
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
             DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, CornerOfTheEye.MODID);

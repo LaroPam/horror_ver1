@@ -56,6 +56,13 @@ public final class Habits {
         tag(player).putFloat(habit.key(), Math.max(0.0F, Math.min(1.0F, value)));
     }
 
+    /** Forgets everything it learned about {@code player}: a fresh start. */
+    public static void forget(Player player) {
+        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
+        persisted.remove(TAG);
+        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
+    }
+
     /** Saw you do it again. */
     public static void note(Player player, Habit habit, float amount) {
         CompoundTag tag = tag(player);

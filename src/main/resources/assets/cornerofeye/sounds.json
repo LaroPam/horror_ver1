@@ -2,15 +2,21 @@
   "the_one_breath": {
     "subtitle": "subtitles.cornerofeye.the_one_breath",
     "sounds": [
-      "cornerofeye:the_one_breath1",
-      "cornerofeye:the_one_breath2"
+      "cornerofeye:the_one_breath_rec1",
+      "cornerofeye:the_one_breath_rec2",
+      "cornerofeye:the_one_breath_rec3",
+      "cornerofeye:the_one_breath1"
     ]
   },
   "the_one_skitter": {
     "subtitle": "subtitles.cornerofeye.the_one_skitter",
     "sounds": [
       "cornerofeye:the_one_skitter1",
-      "cornerofeye:the_one_skitter2"
+      "cornerofeye:the_one_skitter2",
+      "cornerofeye:bone_crack1",
+      "cornerofeye:bone_crack2",
+      "cornerofeye:bone_crack6",
+      "cornerofeye:bone_crack8"
     ]
   },
   "the_one_scream": {
@@ -53,7 +59,7 @@
   "heartbeat": {
     "subtitle": "subtitles.cornerofeye.heartbeat",
     "sounds": [
-      "cornerofeye:heartbeat"
+      "cornerofeye:heartbeat_rec"
     ]
   },
   "drone": {
@@ -166,6 +172,23 @@
         "name": "minecraft:block.glass.hit",
         "type": "event"
       }
+    ]
+  },
+  "bell_string": {
+    "subtitle": "subtitles.cornerofeye.bell_string",
+    "sounds": [
+      {
+        "name": "cornerofeye:warding_bell",
+        "pitch": 1.5
+      }
+    ]
+  },
+  "flesh": {
+    "subtitle": "subtitles.cornerofeye.flesh",
+    "sounds": [
+      "cornerofeye:flesh1",
+      "cornerofeye:flesh2",
+      "cornerofeye:flesh3"
     ]
   }
 }

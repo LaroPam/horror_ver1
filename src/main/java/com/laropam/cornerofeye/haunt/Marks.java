@@ -10,6 +10,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
@@ -153,10 +154,10 @@ public final class Marks {
         return true;
     }
 
-    /** Air, grass and the like, but never on top of something it already left. */
+    /** Air, grass and the like, but never on top of something it already left, nor a flare's light. */
     private static boolean isFree(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        return state.canBeReplaced() && level.getFluidState(pos).isEmpty()
+        return state.canBeReplaced() && level.getFluidState(pos).isEmpty() && !state.is(Blocks.LIGHT)
                 && !state.is(ModBlocks.MARK.get()) && !state.is(ModBlocks.WRITING.get());
     }
 

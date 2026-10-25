@@ -21,6 +21,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -174,8 +175,16 @@ public final class HauntManager {
         if (random.nextInt(20) != 0) {
             return;
         }
-        ServerPlayer victim = pickVictim(overworld);
+        ServerPlayer victim = pickVictim(overworld, true);
         if (victim == null) {
+            return;
+        }
+        // Out on your own at night, with friends somewhere: it may take you.
+        if (Abduction.tryTake(victim, stage, false)) {
+            return;
+        }
+        // A doll left out for it in the dark: it can't help going to that first.
+        if (Moments.lureNear(victim) != null && Moments.start(victim, stage, Scene.LURED, false) != null) {
             return;
         }
         // Every so often, instead of just watching, it stages one of its moments. More often the further it gets.
@@ -210,9 +219,13 @@ public final class HauntManager {
         return HauntData.get(server).isBloodMoon() ? ticks / 2 : ticks;
     }
 
-    /** It prefers whoever is alone in the dark. */
+    /**
+     * It prefers whoever is alone in the dark.
+     * @param paced only at night (or deep in the dark), and only someone whose build-up has run its course; the last
+     *              night waits for neither
+     */
     @Nullable
-    private static ServerPlayer pickVictim(ServerLevel level) {
+    private static ServerPlayer pickVictim(ServerLevel level, boolean paced) {
         List<ServerPlayer> candidates = new ArrayList<>();
         List<Integer> weights = new ArrayList<>();
         for (ServerPlayer player : level.players()) {
@@ -220,11 +233,11 @@ public final class HauntManager {
                 continue;
             }
             HauntContext context = HauntContext.of(player, 0, false);
-            if (!context.night() && !(context.underground() && context.dark())) {
+            if (paced && !context.night() && !(context.underground() && context.dark())) {
                 continue;
             }
             // Only once the build-up for them has run its course.
-            if (!Director.wantsEncounter(player)) {
+            if (paced && !Director.wantsEncounter(player)) {
                 continue;
             }
             boolean alone = level.getNearestPlayer(player.getX(), player.getY(), player.getZ(), 24.0D,
@@ -287,16 +300,17 @@ public final class HauntManager {
         return one;
     }
 
-    /** Comes straight for someone, right now: the last night doesn't wait. */
+    /** Comes straight for someone, right now: the last night doesn't wait. Keeps trying until it gets there or dawn. */
     static void huntNow(MinecraftServer server) {
         HauntData data = HauntData.get(server);
         ServerLevel overworld = server.overworld();
-        if (data.isBanished() || findTheOne(overworld) != null) {
+        if (data.isBanished() || !Nights.isNightTime(overworld) || findTheOne(overworld) != null) {
             return;
         }
-        ServerPlayer victim = pickVictim(overworld);
-        if (victim != null) {
-            appear(victim, data.getStage(), Phase.HUNT);
+        ServerPlayer victim = pickVictim(overworld, false);
+        if (victim == null || appear(victim, data.getStage(), Phase.HUNT) == null) {
+            // Nobody about yet, or still too light at dusk to come out: a little later.
+            schedule(200, () -> huntNow(server));
         }
     }
 
@@ -438,7 +452,7 @@ public final class HauntManager {
         schedule(5, () -> {
             ServerLevel level = player.serverLevel();
             for (BlockPos pos : BlockPos.betweenClosed(player.blockPosition().offset(-2, -1, -2), player.blockPosition().offset(2, 1, 2))) {
-                if (level.getBlockState(pos).canBeReplaced() && level.getFluidState(pos).isEmpty()
+                if (level.getBlockState(pos).canBeReplaced() && !level.getBlockState(pos).is(Blocks.LIGHT) && level.getFluidState(pos).isEmpty()
                         && level.getBlockState(pos.below()).isSolid() && !pos.equals(player.blockPosition())
                         && !pos.equals(player.blockPosition().above())) {
                     float yaw = (float) Math.toDegrees(Math.atan2(pos.getZ() + 0.5D - player.getZ(), pos.getX() + 0.5D - player.getX())) - 90.0F;

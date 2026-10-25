@@ -1,0 +1,22 @@
+{
+  "parent": "cornerofeye:block/bell_string",
+  "display": {
+    "gui": {
+      "rotation": [
+        0,
+        45,
+        0
+      ],
+      "translation": [
+        0,
+        -2,
+        0
+      ],
+      "scale": [
+        1.2,
+        1.2,
+        1.2
+      ]
+    }
+  }
+}

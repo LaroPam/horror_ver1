@@ -7,6 +7,7 @@ import com.laropam.cornerofeye.entity.TheOneEntity;
 import com.laropam.cornerofeye.haunt.HauntData;
 import com.laropam.cornerofeye.haunt.HauntEvent;
 import com.laropam.cornerofeye.haunt.HauntManager;
+import com.laropam.cornerofeye.haunt.Abduction;
 import com.laropam.cornerofeye.haunt.Director;
 import com.laropam.cornerofeye.haunt.Gnawing;
 import com.laropam.cornerofeye.haunt.Habits;
@@ -95,6 +96,9 @@ public final class HauntCommand {
                                                 Arrays.stream(Habits.Habit.values()).map(habit -> habit.name().toLowerCase(Locale.ROOT)), builder))
                                         .then(Commands.argument("value", FloatArgumentType.floatArg(0.0F, 1.0F))
                                                 .executes(HauntCommand::habit)))))
+                .then(Commands.literal("take")
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(ctx -> take(ctx, EntityArgument.getPlayer(ctx, "target")))))
                 .then(Commands.literal("morning")
                         .executes(ctx -> morning(ctx, ctx.getSource().getPlayerOrException()))
                         .then(Commands.argument("target", EntityArgument.player())
@@ -247,6 +251,16 @@ public final class HauntCommand {
         return 1;
     }
 
+    /** It drags the target off into its nightmare, friends or no friends. */
+    private static int take(CommandContext<CommandSourceStack> ctx, ServerPlayer target) {
+        if (!Abduction.tryTake(target, Math.max(HauntData.APPROACHING, data(ctx).getStage()), true)) {
+            ctx.getSource().sendFailure(Component.translatable("commands.cornerofeye.dream.failed"));
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> Component.translatable("cornerofeye.message.taken", target.getDisplayName()), true);
+        return 1;
+    }
+
     /** What you may wake up to: cracks and claw marks on the wall by your bed. */
     private static int morning(CommandContext<CommandSourceStack> ctx, ServerPlayer target) {
         BlockPos bed = HomeVisit.bedOf(target);
@@ -268,7 +282,12 @@ public final class HauntCommand {
 
     private static int reset(CommandContext<CommandSourceStack> ctx) {
         data(ctx).reset();
-        ctx.getSource().getServer().getPlayerList().getPlayers().forEach(Journal::reset);
+        ctx.getSource().getServer().getPlayerList().getPlayers().forEach(player -> {
+            Journal.reset(player);
+            // What it learned about you, and where the build-up was, start over too.
+            Habits.forget(player);
+        });
+        Director.reset();
         TheOneEntity existing = HauntManager.findTheOne(ctx.getSource().getServer().overworld());
         if (existing != null) {
             existing.discard();

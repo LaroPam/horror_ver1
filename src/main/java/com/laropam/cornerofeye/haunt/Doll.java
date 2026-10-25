@@ -5,6 +5,7 @@ import com.laropam.cornerofeye.network.HorrorNetwork;
 import com.laropam.cornerofeye.registry.ModItems;
 import com.laropam.cornerofeye.registry.ModSounds;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -12,10 +13,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.item.ItemTossEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -31,6 +36,8 @@ import java.util.UUID;
 public final class Doll {
     private static final String PLAYER_BOND = "cornerofeye.dollBond";
     private static final String STACK_BOND = "Bond";
+    /** Where they hung their doll up, so it still counts as hung up while that part of the world isn't loaded. */
+    private static final String PLAYER_FRAME = "cornerofeye.dollFrame";
 
     /** Whether {@code player} has a doll on them, anywhere in their inventory. */
     public static boolean carries(Player player) {
@@ -91,8 +98,11 @@ public final class Doll {
         }
     }
 
-    /** Thrown away: give it a minute. If it is still lying there, it isn't. */
-    @SubscribeEvent
+    /**
+     * Thrown away: give it a minute. If it is still lying there, it isn't. Last in line, and never for a toss
+     * something else called off (in a dream it goes straight back into your pocket: that would make two).
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onToss(ItemTossEvent event) {
         ItemEntity entity = event.getEntity();
         if (!entity.getItem().is(ModItems.CURSED_DOLL.get()) || !(event.getPlayer() instanceof ServerPlayer player)) {
@@ -102,7 +112,7 @@ public final class Doll {
         MinecraftServer server = player.getServer();
         HauntManager.schedule(600 + player.getRandom().nextInt(600), () -> {
             ServerPlayer owner = server.getPlayerList().getPlayer(id);
-            if (owner != null && entity.isAlive()) {
+            if (owner != null && entity.isAlive() && entity.isAddedToWorld()) {
                 ItemStack doll = entity.getItem().copy();
                 entity.discard();
                 giveBack(owner, doll);
@@ -112,7 +122,7 @@ public final class Doll {
 
     /** At nightfall a doll you got rid of without fire is back. */
     static void nightfall(ServerPlayer player) {
-        if (bond(player) == 0L || carries(player)) {
+        if (bond(player) == 0L || carries(player) || hungUp(player)) {
             return;
         }
         long bond = newBond(player);
@@ -120,6 +130,48 @@ public final class Doll {
         ItemStack doll = new ItemStack(ModItems.CURSED_DOLL.get());
         doll.getOrCreateTag().putLong(STACK_BOND, bond);
         giveBack(player, doll);
+    }
+
+    /** Their doll is hanging in a frame somewhere: left out on purpose, as bait. It stays where it was put. */
+    private static boolean hungUp(ServerPlayer player) {
+        long bond = bond(player);
+        for (Entity entity : player.serverLevel().getAllEntities()) {
+            if (entity instanceof ItemFrame frame && frame.getItem().is(ModItems.CURSED_DOLL.get())
+                    && frame.getItem().getOrCreateTag().getLong(STACK_BOND) == bond) {
+                return true;
+            }
+        }
+        // Not among what is loaded. If it was hung up somewhere that isn't loaded now, it is still there.
+        CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
+        if (!persisted.contains(PLAYER_FRAME)) {
+            return false;
+        }
+        BlockPos frame = BlockPos.of(persisted.getLong(PLAYER_FRAME));
+        if (player.serverLevel().isLoaded(frame)) {
+            // Loaded, and not there: taken down.
+            persisted.remove(PLAYER_FRAME);
+            player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
+            return false;
+        }
+        return true;
+    }
+
+    /** Hanging their own doll up in a frame: remember where. */
+    @SubscribeEvent
+    public static void onHang(PlayerInteractEvent.EntityInteract event) {
+        if (!(event.getTarget() instanceof ItemFrame frame) || !(event.getEntity() instanceof ServerPlayer player)
+                || !event.getItemStack().is(ModItems.CURSED_DOLL.get()) || !frame.getItem().isEmpty()) {
+            return;
+        }
+        HauntManager.schedule(1, () -> {
+            long bond = bond(player);
+            if (frame.isAlive() && bond != 0L && frame.getItem().is(ModItems.CURSED_DOLL.get())
+                    && frame.getItem().getOrCreateTag().getLong(STACK_BOND) == bond) {
+                CompoundTag persisted = player.getPersistentData().getCompound(Player.PERSISTED_NBT_TAG);
+                persisted.putLong(PLAYER_FRAME, frame.blockPosition().asLong());
+                player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
+            }
+        });
     }
 
     private static void giveBack(ServerPlayer player, ItemStack doll) {

@@ -132,9 +132,12 @@ public final class Gnawing {
         HauntManager.schedule(LINGER, () -> level.destroyBlockProgress(id, wall, -1));
     }
 
-    /** Cracks are drawn per breaker: one made-up breaker per block, so they never mix with a player's own digging. */
+    /**
+     * Cracks are drawn per breaker: one made-up breaker per block, so they never mix with a player's own digging.
+     * All of x, y and z go into it (the low bits of asLong alone leave x out, and a row of blocks shared one).
+     */
     private static int breakerId(BlockPos pos) {
-        return -1000 - (int) (pos.asLong() & 0x3FFFFFFFL);
+        return -1000 - (Long.hashCode(pos.asLong()) & 0x3FFFFFFF);
     }
 
     private Gnawing() {

@@ -112,9 +112,18 @@ public final class Nightmares {
         BlockPos bed = player.getSleepingPos().orElse(player.blockPosition());
         BlockPos corner = bed.offset(-RADIUS, -BELOW, -RADIUS);
         Vec3i size = new Vec3i(RADIUS * 2 + 1, BELOW + ABOVE + 1, RADIUS * 2 + 1);
-        // Everyone dreams in their own corner of the place.
-        int slot = Math.floorMod(player.getUUID().hashCode(), 64);
-        BlockPos origin = new BlockPos((slot % 8) * 256, 96, (slot / 8) * 256);
+        // Everyone dreams in their own corner of the place, never in someone else's while they are still in it.
+        BlockPos origin = null;
+        for (int k = 0; k < 64 && origin == null; k++) {
+            int slot = Math.floorMod(player.getUUID().hashCode() + k, 64);
+            BlockPos candidate = new BlockPos((slot % 8) * 256, 96, (slot / 8) * 256);
+            if (DREAMS.values().stream().noneMatch(other -> other.origin.equals(candidate))) {
+                origin = candidate;
+            }
+        }
+        if (origin == null) {
+            return false;
+        }
 
         for (Entity entity : dream.getEntities((Entity) null, new AABB(origin).inflate(64.0D), entity -> !(entity instanceof Player))) {
             entity.discard();
@@ -135,16 +144,19 @@ public final class Nightmares {
         back.putInt("Y", bed.getY());
         back.putInt("Z", bed.getZ());
         back.putInt("Mode", player.gameMode.getGameModeForPlayer().getId());
-        persisted(player).put(TAG, back);
-        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted(player));
+        CompoundTag persisted = persisted(player);
+        persisted.put(TAG, back);
+        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
 
-        player.stopSleepInBed(false, false);
+        // Out of bed at once, not "woken in the morning": that would start the morning's own scares.
+        player.stopSleepInBed(true, true);
         player.teleportTo(dream, start.getX() + 0.5D, start.getY(), start.getZ() + 0.5D, player.getYRot(), 0.0F);
         player.setGameMode(GameType.ADVENTURE);
         player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 80, 0, false, false));
         DREAMS.put(player.getUUID(), new Dream(origin, goal, stage));
         HorrorNetwork.send(player, HorrorPacket.Type.CHALLENGE, new BlockPos(LENGTH, 0, 0), Challenge.FIND_BED.ordinal());
-        player.sendSystemMessage(Component.translatable("cornerofeye.message.dream_start").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
+        player.sendSystemMessage(Component.translatable(Abduction.isTaken(player) ? "cornerofeye.message.dream_start_taken" : "cornerofeye.message.dream_start")
+                .withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
         return true;
     }
 
@@ -279,6 +291,9 @@ public final class Nightmares {
     private static void finish(ServerPlayer player, Dream dream, boolean won) {
         ServerLevel level = player.serverLevel();
         Director.encounterEnded(player, !won);
+        // Taken away at night, not asleep: the night goes on without them.
+        boolean taken = Abduction.isTaken(player);
+        Abduction.released(player);
         for (TheOneEntity one : level.getEntities(ModEntities.THE_ONE.get(), one -> one.distanceTo(player) < 128.0D)) {
             one.discard();
         }
@@ -287,14 +302,15 @@ public final class Nightmares {
         if (won) {
             ServerLevel overworld = player.server.overworld();
             boolean othersAwake = overworld.players().stream().anyMatch(other -> other != player && !other.isSleeping() && !other.isSpectator());
-            if (!othersAwake) {
+            if (!othersAwake && !taken) {
                 overworld.setDayTime(overworld.getDayTime() + (24000L - overworld.getDayTime() % 24000L));
             }
             ItemStack scrap = new ItemStack(ModItems.SHADOW_SCRAP.get());
             if (!player.getInventory().add(scrap)) {
                 player.drop(scrap, false);
             }
-            player.sendSystemMessage(Component.translatable("cornerofeye.message.dream_won").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
+            player.sendSystemMessage(Component.translatable(taken ? "cornerofeye.message.dream_won_taken" : "cornerofeye.message.dream_won")
+                    .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
         } else {
             HorrorNetwork.send(player, HorrorPacket.Type.JUMPSCARE, 18);
             HorrorNetwork.playSoundTo(player, ModSounds.SCREAM.get(), SoundSource.HOSTILE, player.getEyePosition(), 1.2F, 1.0F);
@@ -302,6 +318,17 @@ public final class Nightmares {
             player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 200, 0));
             player.sendSystemMessage(Component.translatable("cornerofeye.message.dream_lost").withStyle(ChatFormatting.DARK_RED, ChatFormatting.ITALIC));
         }
+    }
+
+    /** When this dream ends, they come back at {@code pos} instead of where they were when it began. */
+    static void wakeAt(ServerPlayer player, BlockPos pos) {
+        CompoundTag persisted = persisted(player);
+        CompoundTag back = persisted.getCompound(TAG);
+        back.putInt("X", pos.getX());
+        back.putInt("Y", pos.getY());
+        back.putInt("Z", pos.getZ());
+        persisted.put(TAG, back);
+        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
     }
 
     /** Back in the real bed, in the real world, in the game mode they had. */
