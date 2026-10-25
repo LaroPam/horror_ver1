@@ -162,6 +162,8 @@ public class TheOneEntity extends Monster {
     private int lastDig;
     /** One of its empty copies on the last night: catching it wastes a scrap. Server side only. */
     private boolean decoy;
+    /** Has gone the proper way (see leave), so the haunt already knows. Server side only. */
+    private boolean left;
     /** Client-side: ticks since the scene step last changed. */
     private int animTicks;
     private int lastAnimSeen = -1;
@@ -1067,17 +1069,34 @@ public class TheOneEntity extends Monster {
         this.smothered.add(pos.immutable());
     }
 
+    /**
+     * However it leaves the world: gone the proper way, discarded, unloaded with its chunk (it is never saved, and
+     * unloading doesn't go through remove()), or left behind out of everyone's range, where it would only stand frozen
+     * until someone came back.
+     */
     @Override
-    public void remove(RemovalReason reason) {
-        if (this.level() instanceof ServerLevel level) {
-            this.burrow.cancel(level);
+    public void onRemovedFromWorld() {
+        super.onRemovedFromWorld();
+        if (!(this.level() instanceof ServerLevel level)) {
+            return;
         }
-        if (this.level() instanceof ServerLevel level && !this.smothered.isEmpty()) {
+        if (this.getRemovalReason() == null) {
+            // Not removed, only out of range: this visit is over, it doesn't wait there for you to come back.
+            HauntManager.schedule(1, this::discard);
+        }
+        this.burrow.cancel(level);
+        if (!this.smothered.isEmpty()) {
             // Gone. What it put out can be lit again now, but nothing comes back on by itself.
             LightSuppression.unlock(level, this.smothered);
             this.smothered.clear();
         }
-        super.remove(reason);
+        if (!this.left && !this.decoy) {
+            // Gone without a word (unloaded, killed by a command): the haunt still has to hear of it. Caught, it was
+            // wounded, and on the last catch that is the end of it. Not in the middle of unloading a chunk, though.
+            this.left = true;
+            HauntManager.Exit exit = this.getPhase() == Phase.REVEALED ? HauntManager.Exit.WOUNDED : HauntManager.Exit.LOST;
+            HauntManager.schedule(1, () -> HauntManager.onGone(level, this, exit));
+        }
     }
 
     public void touch(ServerPlayer victim) {
@@ -1362,7 +1381,8 @@ public class TheOneEntity extends Monster {
             HorrorNetwork.send(victim, HorrorPacket.Type.CHALLENGE_END, 2);
         }
         this.challenge = null;
-        if (this.level() instanceof ServerLevel level && !this.decoy) {
+        if (this.level() instanceof ServerLevel level && !this.decoy && !this.left) {
+            this.left = true;
             HauntManager.onGone(level, this, exit);
         }
         this.discard();
@@ -1395,6 +1415,12 @@ public class TheOneEntity extends Monster {
 
     @Override
     public boolean isPushable() {
+        return false;
+    }
+
+    /** It crawls through anything, portals included, but it stays in your world. */
+    @Override
+    public boolean canChangeDimensions() {
         return false;
     }
 
