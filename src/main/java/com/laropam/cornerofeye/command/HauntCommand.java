@@ -282,7 +282,12 @@ public final class HauntCommand {
 
     private static int reset(CommandContext<CommandSourceStack> ctx) {
         data(ctx).reset();
-        ctx.getSource().getServer().getPlayerList().getPlayers().forEach(Journal::reset);
+        ctx.getSource().getServer().getPlayerList().getPlayers().forEach(player -> {
+            Journal.reset(player);
+            // What it learned about you, and where the build-up was, start over too.
+            Habits.forget(player);
+        });
+        Director.reset();
         TheOneEntity existing = HauntManager.findTheOne(ctx.getSource().getServer().overworld());
         if (existing != null) {
             existing.discard();

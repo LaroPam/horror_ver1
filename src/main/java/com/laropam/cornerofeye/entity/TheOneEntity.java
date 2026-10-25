@@ -614,6 +614,15 @@ public class TheOneEntity extends Monster {
         if (!(this.level() instanceof ServerLevel level)) {
             return;
         }
+        if (this.getPhase() == Phase.REVEALED) {
+            // Caught: it comes apart where it stands, whoever is still about.
+            if (--this.phaseTicks <= 0) {
+                this.leave(HauntManager.Exit.WOUNDED);
+            } else {
+                this.tickRevealed(level);
+            }
+            return;
+        }
         ServerPlayer victim = this.resolveVictim();
         if (victim == null) {
             this.leave(HauntManager.Exit.LOST);
@@ -1345,6 +1354,10 @@ public class TheOneEntity extends Monster {
     }
 
     public void leave(HauntManager.Exit exit) {
+        if (this.getPhase() == Phase.REVEALED) {
+            // Caught, whatever else happens to it now: the wound is what counts (on the last one, the end of it).
+            exit = HauntManager.Exit.WOUNDED;
+        }
         if (this.challenge != null && this.victimId != null && this.level().getPlayerByUUID(this.victimId) instanceof ServerPlayer victim) {
             HorrorNetwork.send(victim, HorrorPacket.Type.CHALLENGE_END, 2);
         }

@@ -148,7 +148,7 @@ public final class Director {
         state.progress = state.length;
     }
 
-    static void reset() {
+    public static void reset() {
         STATES.clear();
     }
 

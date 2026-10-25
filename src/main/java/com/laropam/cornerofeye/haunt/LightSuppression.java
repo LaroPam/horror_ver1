@@ -249,6 +249,22 @@ public final class LightSuppression {
         level.destroyBlock(pos, false, event.getPlayer());
     }
 
+    /**
+     * Something new put down where a dead light used to be (it went some other way than being broken by hand: blown
+     * up, pushed, replaced). A fresh light is a fresh light.
+     */
+    @SubscribeEvent
+    public static void onPlace(BlockEvent.EntityPlaceEvent event) {
+        if (event.getLevel() instanceof ServerLevel level && (has(DARK, level, event.getPos()) || has(FROZEN, level, event.getPos()))) {
+            relight(level, event.getPos());
+        }
+    }
+
+    private static boolean has(Map<ResourceKey<Level>, Map<Long, Block>> store, ServerLevel level, BlockPos pos) {
+        Map<Long, Block> map = store.get(level.dimension());
+        return map != null && map.containsKey(pos.asLong());
+    }
+
     @SubscribeEvent
     public static void onLevelLoad(LevelEvent.Load event) {
         if (event.getLevel() instanceof ServerLevel level) {
