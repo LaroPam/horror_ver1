@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "tools",
+  "pattern": [
+    "FI",
+    "SC",
+    "F "
+  ],
+  "key": {
+    "F": {
+      "item": "minecraft:flint"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "S": {
+      "item": "minecraft:string"
+    },
+    "C": {
+      "tag": "minecraft:coals"
+    }
+  },
+  "result": {
+    "item": "minecraft:flint_and_steel",
+    "count": 1
+  }
+}

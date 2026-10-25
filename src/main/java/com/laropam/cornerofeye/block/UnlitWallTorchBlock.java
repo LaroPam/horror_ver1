@@ -8,7 +8,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.WallTorchBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -30,8 +29,7 @@ public class UnlitWallTorchBlock extends WallTorchBlock {
 
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-        Block lit = state.getValue(UnlitTorchBlock.SOUL) ? Blocks.SOUL_WALL_TORCH : Blocks.WALL_TORCH;
-        return Relight.torch(level, pos, player, hand, lit.defaultBlockState().setValue(FACING, state.getValue(FACING)));
+        return Relight.torch(level, pos, player, hand);
     }
 
     @Override

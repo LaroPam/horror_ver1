@@ -152,7 +152,7 @@ public final class Lights {
         BlockState burnt = state.getBlock() instanceof WallTorchBlock
                 ? ModBlocks.UNLIT_WALL_TORCH.get().defaultBlockState().setValue(WallTorchBlock.FACING, state.getValue(WallTorchBlock.FACING))
                 : ModBlocks.UNLIT_TORCH.get().defaultBlockState();
-        // A soul torch stays one: lit again, it burns blue again.
+        // Remembered, though nothing lights it again.
         burnt = burnt.setValue(UnlitTorchBlock.SOUL, state.is(Blocks.SOUL_TORCH) || state.is(Blocks.SOUL_WALL_TORCH));
         level.setBlock(pos, burnt, Block.UPDATE_ALL);
     }
