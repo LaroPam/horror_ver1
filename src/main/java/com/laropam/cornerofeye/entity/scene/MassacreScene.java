@@ -136,6 +136,7 @@ public final class MassacreScene implements SceneRunner {
         }
         level.playSound(null, pos.x, pos.y + 1.0D, pos.z, target instanceof Villager ? SoundEvents.VILLAGER_HURT : SoundEvents.IRON_GOLEM_HURT,
                 SoundSource.NEUTRAL, 1.5F, 0.5F);
+        level.playSound(null, pos.x, pos.y + 1.0D, pos.z, ModSounds.FLESH.get(), SoundSource.HOSTILE, 1.3F, 0.8F + level.random.nextFloat() * 0.2F);
         Blood.splatter(level, BlockPos.containing(pos), 4 + level.random.nextInt(4), 2);
         if (target instanceof Villager villager) {
             CorpseEntity corpse = ModEntities.CORPSE.get().create(level);

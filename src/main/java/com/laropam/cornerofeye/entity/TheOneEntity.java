@@ -1094,6 +1094,7 @@ public class TheOneEntity extends Monster {
         if (damage > 0.0F) {
             victim.invulnerableTime = 0;
             victim.hurt(this.damageSources().mobAttack(this), damage);
+            this.level().playSound(null, victim.getX(), victim.getEyeY(), victim.getZ(), ModSounds.FLESH.get(), SoundSource.HOSTILE, 1.0F, 0.85F);
         }
         victim.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 200, 0), this);
         victim.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 1), this);

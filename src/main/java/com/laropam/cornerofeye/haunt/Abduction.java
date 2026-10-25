@@ -88,6 +88,7 @@ public final class Abduction {
         Nightmares.wakeAt(victim, end);
         Vec3 scream = Vec3.atCenterOf(from);
         level.playSound(null, scream.x, scream.y, scream.z, ModSounds.SCREAM.get(), SoundSource.HOSTILE, 1.4F, 1.3F);
+        level.playSound(null, scream.x, scream.y, scream.z, ModSounds.FLESH.get(), SoundSource.HOSTILE, 1.2F, 0.75F);
         Component lost = Component.translatable("cornerofeye.message.taken", victim.getDisplayName()).withStyle(ChatFormatting.DARK_RED, ChatFormatting.ITALIC);
         for (ServerPlayer other : level.getServer().getPlayerList().getPlayers()) {
             if (other != victim) {

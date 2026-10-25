@@ -268,5 +268,6 @@
   "cornerofeye.message.taken": "%s's voice broke off somewhere in the dark.",
   "cornerofeye.message.taken_back": "The light brought %s back.",
   "cornerofeye.message.dream_start_taken": "Something has hold of your ankle. The ground scrapes past under you. Then nothing.",
-  "cornerofeye.message.dream_won_taken": "It lets go. You are lying on the ground where it dragged you, and there is something in your hand."
+  "cornerofeye.message.dream_won_taken": "It lets go. You are lying on the ground where it dragged you, and there is something in your hand.",
+  "subtitles.cornerofeye.flesh": "Flesh tears"
 }
