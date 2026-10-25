@@ -65,6 +65,15 @@ public final class ClientHorror {
     private static int stepTimer;
     private static double stepDistance;
     private static float stepYaw;
+    /** Echo steps: while this runs, every step you take is answered by one behind you, a moment late. */
+    private static int echoTicks;
+    private static int echoLastStep;
+    private static int echoDue = -1;
+    private static int echoIdle;
+    private static boolean echoWalked;
+    private static int echoFinalDue = -1;
+    /** Where the last of them came from: look that way and they stop. */
+    private static Vec3 echoFrom = Vec3.ZERO;
 
     private static BlockPos miningPos = BlockPos.ZERO;
     private static int miningBlocksLeft;
@@ -134,6 +143,14 @@ public final class ClientHorror {
                     stepTimer = 0;
                     stepDistance = 7.0D;
                     stepYaw = player.getYRot() + 180.0F + (RANDOM.nextFloat() - 0.5F) * 50.0F;
+                    echoTicks = 300 + msg.data() * 30;
+                    echoLastStep = (int) player.moveDist;
+                    echoDue = -1;
+                    echoIdle = 0;
+                    echoWalked = false;
+                    echoFinalDue = -1;
+                    double rad = Math.toRadians(stepYaw);
+                    echoFrom = new Vec3(-Math.sin(rad), 0.0D, Math.cos(rad));
                 }
             }
             case MINING -> {
@@ -247,19 +264,65 @@ public final class ClientHorror {
         }
     }
 
-    /** Steps from behind that get closer, and stop the moment you turn around. */
+    /**
+     * Steps behind you. Standing still, you hear them coming closer from behind. Walking, every step you take is
+     * answered by one behind you, a moment late, in your rhythm; when you stop, it takes one more step, closer,
+     * and then nothing. Turn round and they stop at once.
+     */
     private static void tickFootsteps(ClientLevel level, LocalPlayer player) {
+        Vec3 look = player.getViewVector(1.0F);
+        Vec3 back = new Vec3(-look.x, 0.0D, -look.z);
+        if (echoTicks > 0) {
+            echoTicks--;
+            if (look.x * echoFrom.x + look.z * echoFrom.z > 0.35D) {
+                echoTicks = 0;
+                stepsLeft = 0;
+                return;
+            }
+            int step = (int) player.moveDist;
+            if (step != echoLastStep) {
+                echoLastStep = step;
+                echoIdle = 0;
+                echoWalked = true;
+                stepsLeft = 0;
+                if (echoDue < 0) {
+                    echoDue = 4 + RANDOM.nextInt(3);
+                }
+            } else if (++echoIdle == 8 && echoWalked) {
+                // You stopped.
+                echoFinalDue = 9 + RANDOM.nextInt(6);
+            }
+            if (echoDue >= 0 && --echoDue < 0) {
+                stepBehind(level, player, back, 4.5D, 0.3F);
+            }
+            if (echoFinalDue >= 0 && --echoFinalDue < 0) {
+                // ...it didn't.
+                stepBehind(level, player, back, 3.0D, 0.42F);
+                dreadSpike = Math.min(1.0F, dreadSpike + 0.3F);
+                echoTicks = 0;
+            }
+            if (echoWalked) {
+                return;
+            }
+        }
         if (stepsLeft <= 0 || --stepTimer > 0) {
             return;
         }
         double rad = Math.toRadians(stepYaw);
         Vec3 dir = new Vec3(-Math.sin(rad), 0.0D, Math.cos(rad));
-        Vec3 look = player.getViewVector(1.0F);
         if (look.x * dir.x + look.z * dir.z > 0.35D) {
             stepsLeft = 0;
             return;
         }
-        Vec3 at = player.position().add(dir.scale(stepDistance));
+        stepBehind(level, player, dir, stepDistance, 0.3F);
+        stepDistance = Math.max(2.0D, stepDistance - 0.6D);
+        stepsLeft--;
+        stepTimer = 7 + RANDOM.nextInt(3);
+    }
+
+    /** One step on whatever the ground is {@code distance} blocks off in {@code direction}. */
+    private static void stepBehind(ClientLevel level, LocalPlayer player, Vec3 direction, double distance, float volume) {
+        Vec3 at = player.position().add(direction.normalize().scale(distance));
         BlockPos ground = BlockPos.containing(at);
         for (int i = 0; i < 4 && level.getBlockState(ground.below()).isAir(); i++) {
             ground = ground.below();
@@ -268,11 +331,9 @@ public final class ClientHorror {
         if (!state.isAir()) {
             SoundType sound = state.getSoundType();
             level.playLocalSound(at.x, ground.getY(), at.z, sound.getStepSound(), SoundSource.HOSTILE,
-                    sound.getVolume() * 0.3F, sound.getPitch() * 0.9F, false);
+                    sound.getVolume() * volume, sound.getPitch() * 0.85F, false);
         }
-        stepDistance = Math.max(2.0D, stepDistance - 0.6D);
-        stepsLeft--;
-        stepTimer = 7 + RANDOM.nextInt(3);
+        echoFrom = direction.normalize();
     }
 
     /** Pickaxe on stone, somewhere inside the walls. */
@@ -428,6 +489,7 @@ public final class ClientHorror {
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         stage = 0;
         stepsLeft = 0;
+        echoTicks = 0;
         miningBlocksLeft = 0;
         cardTicks = 0;
         bloodMoon = false;
