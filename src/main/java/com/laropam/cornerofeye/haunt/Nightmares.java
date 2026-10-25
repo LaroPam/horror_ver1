@@ -112,9 +112,18 @@ public final class Nightmares {
         BlockPos bed = player.getSleepingPos().orElse(player.blockPosition());
         BlockPos corner = bed.offset(-RADIUS, -BELOW, -RADIUS);
         Vec3i size = new Vec3i(RADIUS * 2 + 1, BELOW + ABOVE + 1, RADIUS * 2 + 1);
-        // Everyone dreams in their own corner of the place.
-        int slot = Math.floorMod(player.getUUID().hashCode(), 64);
-        BlockPos origin = new BlockPos((slot % 8) * 256, 96, (slot / 8) * 256);
+        // Everyone dreams in their own corner of the place, never in someone else's while they are still in it.
+        BlockPos origin = null;
+        for (int k = 0; k < 64 && origin == null; k++) {
+            int slot = Math.floorMod(player.getUUID().hashCode() + k, 64);
+            BlockPos candidate = new BlockPos((slot % 8) * 256, 96, (slot / 8) * 256);
+            if (DREAMS.values().stream().noneMatch(other -> other.origin.equals(candidate))) {
+                origin = candidate;
+            }
+        }
+        if (origin == null) {
+            return false;
+        }
 
         for (Entity entity : dream.getEntities((Entity) null, new AABB(origin).inflate(64.0D), entity -> !(entity instanceof Player))) {
             entity.discard();
@@ -135,10 +144,12 @@ public final class Nightmares {
         back.putInt("Y", bed.getY());
         back.putInt("Z", bed.getZ());
         back.putInt("Mode", player.gameMode.getGameModeForPlayer().getId());
-        persisted(player).put(TAG, back);
-        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted(player));
+        CompoundTag persisted = persisted(player);
+        persisted.put(TAG, back);
+        player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
 
-        player.stopSleepInBed(false, false);
+        // Out of bed at once, not "woken in the morning": that would start the morning's own scares.
+        player.stopSleepInBed(true, true);
         player.teleportTo(dream, start.getX() + 0.5D, start.getY(), start.getZ() + 0.5D, player.getYRot(), 0.0F);
         player.setGameMode(GameType.ADVENTURE);
         player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 80, 0, false, false));

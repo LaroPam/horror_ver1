@@ -48,8 +48,11 @@ public final class Director {
         RandomSource random = player.getRandom();
         HauntContext context = HauntContext.of(player, stage, false);
         state.tension = Math.max(0.0F, state.tension - 0.004F);
-        double pace = HorrorConfig.EVENT_FREQUENCY.get() * (context.night() ? 1.5D : 1.0D) * (context.dark() ? 1.3D : 1.0D)
+        // How fast the wave rises: faster at night, in the dark, under a blood moon. The config only thins or
+        // thickens the small events along the way, not how often it comes itself.
+        double pace = (context.night() ? 1.5D : 1.0D) * (context.dark() ? 1.3D : 1.0D)
                 * (HauntData.get(player.server).isBloodMoon() ? 1.5D : 1.0D);
+        double events = pace * HorrorConfig.EVENT_FREQUENCY.get();
         if (state.mood == Mood.READY) {
             // Ready, but it isn't free to come yet: the wait stretches (up to about ten minutes).
             state.progress += HauntManager.appearanceDue(player.server) ? 1.0D : 0.25D;
@@ -65,7 +68,7 @@ public final class Director {
             case BUILDING -> {
                 float build = (float) Math.min(1.0D, state.progress / state.length);
                 // Sparse at first, then more and more often, and worse.
-                double chance = pace * (0.012D + 0.032D * build) * (stage == HauntData.SILENCE ? 0.4D : 1.0D);
+                double chance = events * (0.012D + 0.032D * build) * (stage == HauntData.SILENCE ? 0.4D : 1.0D);
                 if (random.nextDouble() < chance) {
                     int tier = stage == HauntData.SILENCE ? 0 : build < 0.35F ? 0 : build < 0.75F ? 1 : 2;
                     HauntEvent event = HauntEvent.runRandom(context, tier);
@@ -80,7 +83,7 @@ public final class Director {
                 }
             }
             case READY -> {
-                if (random.nextDouble() < pace * 0.015D) {
+                if (random.nextDouble() < events * 0.015D) {
                     HauntEvent.runRandom(context, 2);
                 }
                 if (state.progress >= state.length) {

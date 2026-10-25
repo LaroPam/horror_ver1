@@ -174,7 +174,7 @@ public final class HauntManager {
         if (random.nextInt(20) != 0) {
             return;
         }
-        ServerPlayer victim = pickVictim(overworld);
+        ServerPlayer victim = pickVictim(overworld, true);
         if (victim == null) {
             return;
         }
@@ -218,9 +218,13 @@ public final class HauntManager {
         return HauntData.get(server).isBloodMoon() ? ticks / 2 : ticks;
     }
 
-    /** It prefers whoever is alone in the dark. */
+    /**
+     * It prefers whoever is alone in the dark.
+     * @param paced only at night (or deep in the dark), and only someone whose build-up has run its course; the last
+     *              night waits for neither
+     */
     @Nullable
-    private static ServerPlayer pickVictim(ServerLevel level) {
+    private static ServerPlayer pickVictim(ServerLevel level, boolean paced) {
         List<ServerPlayer> candidates = new ArrayList<>();
         List<Integer> weights = new ArrayList<>();
         for (ServerPlayer player : level.players()) {
@@ -228,11 +232,11 @@ public final class HauntManager {
                 continue;
             }
             HauntContext context = HauntContext.of(player, 0, false);
-            if (!context.night() && !(context.underground() && context.dark())) {
+            if (paced && !context.night() && !(context.underground() && context.dark())) {
                 continue;
             }
             // Only once the build-up for them has run its course.
-            if (!Director.wantsEncounter(player)) {
+            if (paced && !Director.wantsEncounter(player)) {
                 continue;
             }
             boolean alone = level.getNearestPlayer(player.getX(), player.getY(), player.getZ(), 24.0D,
@@ -295,16 +299,17 @@ public final class HauntManager {
         return one;
     }
 
-    /** Comes straight for someone, right now: the last night doesn't wait. */
+    /** Comes straight for someone, right now: the last night doesn't wait. Keeps trying until it gets there or dawn. */
     static void huntNow(MinecraftServer server) {
         HauntData data = HauntData.get(server);
         ServerLevel overworld = server.overworld();
-        if (data.isBanished() || findTheOne(overworld) != null) {
+        if (data.isBanished() || !Nights.isNightTime(overworld) || findTheOne(overworld) != null) {
             return;
         }
-        ServerPlayer victim = pickVictim(overworld);
-        if (victim != null) {
-            appear(victim, data.getStage(), Phase.HUNT);
+        ServerPlayer victim = pickVictim(overworld, false);
+        if (victim == null || appear(victim, data.getStage(), Phase.HUNT) == null) {
+            // Nobody about yet, or still too light at dusk to come out: a little later.
+            schedule(200, () -> huntNow(server));
         }
     }
 
