@@ -65,27 +65,29 @@ public final class Abduction {
         BlockPos from = victim.blockPosition();
         // Dragged off along the ground: hands clawing at it, blood.
         Direction away = Direction.Plane.HORIZONTAL.getRandomDirection(victim.getRandom());
-        BlockPos end = from;
+        List<BlockPos> trail = new ArrayList<>();
         for (int step = 1; step <= 12; step++) {
             BlockPos ground = SpotFinder.findGround(level, from.relative(away, step).relative(away.getClockWise(), victim.getRandom().nextInt(3) - 1), 3);
             if (ground == null) {
                 break;
             }
-            end = ground;
-            if (step % 2 == 0) {
-                Marks.markOn(level, ground, Direction.UP, step % 4 == 0 ? MarkBlock.HAND : MarkBlock.SMEAR);
-            }
+            trail.add(ground);
+        }
+        BlockPos end = trail.isEmpty() ? from : trail.get(trail.size() - 1);
+        TAKEN.put(victim.getUUID(), end.immutable());
+        if (!Nightmares.begin(victim, stage)) {
+            // Couldn't take them after all: nothing happened.
+            TAKEN.remove(victim.getUUID());
+            return false;
+        }
+        Nightmares.wakeAt(victim, end);
+        for (int i = 1; i < trail.size(); i += 2) {
+            Marks.markOn(level, trail.get(i), Direction.UP, i % 4 == 3 ? MarkBlock.HAND : MarkBlock.SMEAR);
         }
         if (HorrorConfig.ALLOW_BLOCK_CHANGES.get()) {
             Blood.splatter(level, end, 4, 2);
         }
         HorrorNetwork.send(victim, HorrorPacket.Type.JUMPSCARE, 10);
-        TAKEN.put(victim.getUUID(), end.immutable());
-        if (!Nightmares.begin(victim, stage)) {
-            TAKEN.remove(victim.getUUID());
-            return false;
-        }
-        Nightmares.wakeAt(victim, end);
         Vec3 scream = Vec3.atCenterOf(from);
         level.playSound(null, scream.x, scream.y, scream.z, ModSounds.SCREAM.get(), SoundSource.HOSTILE, 1.4F, 1.3F);
         level.playSound(null, scream.x, scream.y, scream.z, ModSounds.FLESH.get(), SoundSource.HOSTILE, 1.2F, 0.75F);
