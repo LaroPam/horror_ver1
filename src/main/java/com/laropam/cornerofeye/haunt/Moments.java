@@ -72,7 +72,8 @@ public final class Moments {
      */
     @Nullable
     public static TheOneEntity start(ServerPlayer victim, int stage, Scene scene, boolean forced) {
-        if (victim.isPassenger() || victim.getAbilities().flying || (victim.isInWater() && scene != Scene.UNDERWATER)) {
+        if (victim.hasDisconnected() || !victim.isAlive() || victim.isSpectator() || victim.isPassenger() || victim.getAbilities().flying
+                || (victim.isInWater() && scene != Scene.UNDERWATER)) {
             return null;
         }
         ServerLevel level = victim.serverLevel();
@@ -103,8 +104,9 @@ public final class Moments {
         BlockPos center = victim.blockPosition();
         for (BlockPos pos : BlockPos.betweenClosed(center.offset(-10, -3, -10), center.offset(10, 3, 10))) {
             BlockState state = level.getBlockState(pos);
-            if (state.getBlock() instanceof DoorBlock && state.getValue(DoorBlock.HALF) == DoubleBlockHalf.LOWER
-                    && (mayOpen || state.getValue(DoorBlock.OPEN))) {
+            // An open door, or one a hand can open (not iron).
+            if (state.getBlock() instanceof DoorBlock door && state.getValue(DoorBlock.HALF) == DoubleBlockHalf.LOWER
+                    && (mayOpen && door.type().canOpenByHand() || state.getValue(DoorBlock.OPEN))) {
                 doors.add(pos.immutable());
             }
         }
