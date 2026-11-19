@@ -10,7 +10,7 @@ import com.laropam.cornerofeye.network.HorrorPacket;
 import com.laropam.cornerofeye.registry.ModEntities;
 import com.laropam.cornerofeye.registry.ModSounds;
 import net.minecraft.ChatFormatting;
-import net.minecraft.advancements.Advancement;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -388,7 +388,7 @@ public final class HauntManager {
     }
 
     public static void award(ServerPlayer player, String advancement) {
-        Advancement adv = player.server.getAdvancements().getAdvancement(CornerOfTheEye.id(advancement));
+        AdvancementHolder adv = player.server.getAdvancements().get(CornerOfTheEye.id(advancement));
         if (adv != null) {
             player.getAdvancements().award(adv, "code");
         }

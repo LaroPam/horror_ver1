@@ -26,6 +26,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -351,7 +352,9 @@ public final class LightSuppression {
 
         static Data get(ServerLevel level) {
             ResourceKey<Level> dimension = level.dimension();
-            return level.getDataStorage().computeIfAbsent(tag -> load(dimension, tag), () -> new Data(dimension), NAME);
+            // The loader always runs a data fix over the file; this type's fixes never touch fields they don't know.
+            return level.getDataStorage().computeIfAbsent(
+                    new SavedData.Factory<>(() -> new Data(dimension), tag -> load(dimension, tag), DataFixTypes.SAVED_DATA_COMMAND_STORAGE), NAME);
         }
 
         private static Data load(ResourceKey<Level> dimension, CompoundTag tag) {

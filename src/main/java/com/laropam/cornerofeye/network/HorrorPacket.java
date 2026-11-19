@@ -5,9 +5,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
-import java.util.function.Supplier;
 
 /** Server → client: effects that only exist on one player's screen or in their headphones. */
 public record HorrorPacket(Type type, BlockPos pos, int data) {
@@ -52,7 +51,7 @@ public record HorrorPacket(Type type, BlockPos pos, int data) {
         return new HorrorPacket(buf.readEnum(Type.class), buf.readBlockPos(), buf.readVarInt());
     }
 
-    public static void handle(HorrorPacket msg, Supplier<NetworkEvent.Context> ctx) {
+    public static void handle(HorrorPacket msg, CustomPayloadEvent.Context ctx) {
         DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientHorror.handle(msg));
     }
 }

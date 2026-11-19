@@ -3,6 +3,7 @@ package com.laropam.cornerofeye.haunt;
 import com.laropam.cornerofeye.HorrorConfig;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
 
 /**
@@ -30,7 +31,9 @@ public class HauntData extends SavedData {
     private long banishedAt;
 
     public static HauntData get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(HauntData::load, HauntData::new, NAME);
+        // The loader always runs a data fix over the file; this type's fixes never touch fields they don't know.
+        return server.overworld().getDataStorage().computeIfAbsent(
+                new SavedData.Factory<>(HauntData::new, HauntData::load, DataFixTypes.SAVED_DATA_COMMAND_STORAGE), NAME);
     }
 
     private static HauntData load(CompoundTag tag) {

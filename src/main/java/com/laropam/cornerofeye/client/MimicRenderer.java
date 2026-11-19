@@ -10,6 +10,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.resources.DefaultPlayerSkin;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.resources.ResourceLocation;
 
 import javax.annotation.Nullable;
@@ -36,13 +37,18 @@ public class MimicRenderer extends LivingEntityRenderer<MimicEntity, MimicModel>
     public ResourceLocation getTextureLocation(MimicEntity entity) {
         UUID id = entity.getCopied().orElse(entity.getUUID());
         PlayerInfo info = info(id);
-        return info != null ? info.getSkinLocation() : DefaultPlayerSkin.getDefaultSkin(id);
+        return skin(entity).texture();
     }
 
     private static boolean isSlim(MimicEntity entity) {
+        return skin(entity).model() == PlayerSkin.Model.SLIM;
+    }
+
+    /** The skin of whoever it is copying: theirs if they are online, else the default one for their id. */
+    private static PlayerSkin skin(MimicEntity entity) {
         UUID id = entity.getCopied().orElse(entity.getUUID());
         PlayerInfo info = info(id);
-        return "slim".equals(info != null ? info.getModelName() : DefaultPlayerSkin.getSkinModelName(id));
+        return info != null ? info.getSkin() : DefaultPlayerSkin.get(id);
     }
 
     @Nullable

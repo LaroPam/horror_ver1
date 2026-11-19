@@ -15,6 +15,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.gui.overlay.ForgeGui;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 /**
  * The hand mirror held up in front of you. It shows what is behind you, which is mostly darkness; when it is
@@ -104,7 +105,7 @@ final class MirrorOverlay {
         one.setXRot(0.0F);
         one.yHeadRot = 180.0F;
         one.yHeadRotO = 180.0F;
-        InventoryScreen.renderEntityInInventory(graphics, px, feet, scale, new Quaternionf().rotateZ((float) Math.PI), null, one);
+        InventoryScreen.renderEntityInInventory(graphics, px, feet, scale, new Vector3f(), new Quaternionf().rotateZ((float) Math.PI), null, one);
         one.yBodyRot = bodyRot;
         one.setYRot(yRot);
         one.setXRot(xRot);

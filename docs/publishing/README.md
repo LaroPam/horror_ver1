@@ -97,7 +97,7 @@ cute, cartoonish, smiling, friendly, bright daylight, colorful, realistic human,
 
 ### Описание (EN)
 
-> **Corner of the Eye** is a slow-burning horror mod for Minecraft 1.20.1 (Forge), for singleplayer and co-op.
+> **Corner of the Eye** is a slow-burning horror mod for Minecraft 1.20.2 (Forge), for singleplayer and co-op.
 >
 > Something lives in your world. Look straight at it and nothing is there; it only exists at the edge of your vision. It puts out the lights you aren't looking at, walks through walls, and every night it comes a little closer. There is no fear meter: you'll know it is near by your heartbeat, your breathing and the world going quiet.
 >
@@ -109,7 +109,7 @@ cute, cartoonish, smiling, friendly, bright daylight, colorful, realistic human,
 
 ### Описание (RU)
 
-> **Краем глаза** — медленный хоррор-мод для Minecraft 1.20.1 (Forge), для одиночной игры и кооператива.
+> **Краем глаза** — медленный хоррор-мод для Minecraft 1.20.2 (Forge), для одиночной игры и кооператива.
 >
 > В твоём мире кто-то живёт. Посмотришь прямо — никого нет: оно существует только на краю зрения. Оно гасит свет, на который ты не смотришь, проходит сквозь стены и каждую ночь подбирается ближе. Шкалы страха нет: о том, что оно рядом, скажут сердцебиение, дыхание и затихший мир.
 >
